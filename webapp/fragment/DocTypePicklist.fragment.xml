@@ -1,0 +1,26 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+
+    <SelectDialog
+        id="docTypePicklistDialog"
+        title="Select Document Type"
+        noDataText="No document types found."
+        search="onDocTypePicklistSearch"
+        confirm="onDocTypePicklistConfirm"
+        cancel="onDocTypePicklistCancel"
+        growing="true"
+        growingThreshold="50"
+        items="{
+            path: '/referenceData/documentTypes',
+            templateShareable: false
+        }">
+
+        <StandardListItem
+            title="{documentType}"
+        
+            iconInset="false"/>
+
+    </SelectDialog>
+
+</core:FragmentDefinition>

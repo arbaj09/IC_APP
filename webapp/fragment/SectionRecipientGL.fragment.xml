@@ -1,0 +1,96 @@
+<!-- <core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.ui.layout.form"
+    xmlns:uxap="sap.uxap">
+
+    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipient" titleUppercase="false">
+        <uxap:subSections>
+            <uxap:ObjectPageSubSection title="GL Coding — Recipent" titleUppercase="false">
+                <uxap:blocks>
+                    <VBox>
+                        <f:SimpleForm  editable="true" layout="ResponsiveGridLayout"
+                                      labelSpanL="4" labelSpanM="4" columnsL="1" columnsM="1" >
+                            <f:content>
+                                <Label text="Tax / VAT Code"/>
+                                <VBox>
+                                    <Select selectedKey="{/headerData/recipientTaxCode}"
+                                            change="onRecipientTaxCodeChange" width="220px">
+                                        <core:Item key=""   text="(blank) — not applicable"/>
+                                        <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
+                                        <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
+                                        <core:Item key="V1" text="V1 — Standard VAT 15%"/>
+                                        <core:Item key="V2" text="V2 — Standard VAT 20%"/>
+                                        <core:Item key="V5" text="V5 — Reduced Rate 5%"/>
+                                        <core:Item key="VE" text="VE — VAT Exempt"/>
+                                    </Select>
+                                    <Text text="{/headerData/recipientCountry}" class="sapUiTinyMarginTop"/>
+                                </VBox>
+                                <Label text="Tax Amount"/>
+                                <ObjectStatus
+                                    text="{parts: [{path: '/headerData/recipientTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
+                                    state="{path: '/headerData/recipientTaxAmount', formatter: '.formatter.taxAmountState'}"/>
+                            </f:content>
+                        </f:SimpleForm>
+                    </VBox>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+    </uxap:ObjectPageSection>
+
+</core:FragmentDefinition> -->
+
+
+
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.ui.layout.form"
+    xmlns:uxap="sap.uxap">
+
+    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipient" titleUppercase="false">
+        <uxap:subSections>
+            <uxap:ObjectPageSubSection title="GL Coding — Recipient" titleUppercase="false">
+                <uxap:blocks>
+                    <VBox>
+                        <f:SimpleForm editable="true" 
+                                      layout="ResponsiveGridLayout"
+                                      labelSpanXL="2"
+                                      labelSpanL="2" 
+                                      labelSpanM="3" 
+                                      labelSpanS="12"
+                                      adjustLabelSpan="false"
+                                      emptySpanXL="0"
+                                      emptySpanL="0"
+                                      emptySpanM="0"
+                                      emptySpanS="0"
+                                      columnsL="1" 
+                                      columnsM="1">
+                            <f:content>
+                                <Label text="Tax / VAT Code" textAlign="Left"/>
+                                <VBox renderType="Bare">
+                                    <Select selectedKey="{/headerData/recipientTaxCode}"
+                                            change="onRecipientTaxCodeChange" width="220px">
+                                        <core:Item key=""    text="(blank) — not applicable"/>
+                                        <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
+                                        <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
+                                        <core:Item key="V1" text="V1 — Standard VAT 15%"/>
+                                        <core:Item key="V2" text="V2 — Standard VAT 20%"/>
+                                        <core:Item key="V5" text="V5 — Reduced Rate 5%"/>
+                                        <core:Item key="VE" text="VE — VAT Exempt"/>
+                                    </Select>
+                                    <Text text="{/headerData/recipientCountry}" class="sapUiTinyMarginTop"/>
+                                </VBox>
+                                <Label text="Tax Amount" textAlign="Left"/>
+                                <ObjectStatus
+                                    text="{parts: [{path: '/headerData/recipientTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
+                                    state="{path: '/headerData/recipientTaxAmount', formatter: '.formatter.taxAmountState'}"/>
+                            </f:content>
+                        </f:SimpleForm>
+                    </VBox>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+    </uxap:ObjectPageSection>
+
+</core:FragmentDefinition>

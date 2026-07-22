@@ -1,0 +1,19 @@
+{
+  "name": "zfi-interco",
+  "version": "1.0.0",
+  "description": "ZFI_INTERCO — Intercompany Transaction App (SAP UI5 / OpenUI5)",
+  "scripts": {
+    "start": "ui5 serve --open index.html",
+    "start:legacy": "npx http-server ./webapp -p 4000 -o --cors",
+    "build": "ui5 build --clean-dest"
+  },
+  "devDependencies": {
+    "@ui5/cli": "^3.0.0",
+    "ui5-middleware-simpleproxy": "^0.9.10"
+  },
+  "ui5": {
+    "dependencies": [
+      "ui5-middleware-simpleproxy"
+    ]
+  }
+}

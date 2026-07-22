@@ -1,0 +1,87 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:f="sap.ui.layout.form"
+    xmlns:uxap="sap.uxap">
+
+    <uxap:ObjectPageSection id="sectionTxControl" title="Header Data" titleUppercase="false">
+        <uxap:subSections>
+
+            <uxap:ObjectPageSubSection title="Type &amp; Classification" titleUppercase="false">
+                <uxap:blocks>
+                    <f:SimpleForm editable="true" layout="ResponsiveGridLayout"
+                                  labelSpanXL="3" labelSpanL="3" labelSpanM="4" labelSpanS="12"
+                                  adjustLabelSpan="false" columnsXL="1" columnsL="1" columnsM="1">
+                        <f:content>
+                            <Label text="Transaction Type" required="true"/>
+                            <RadioButtonGroup selectedIndex="{/headerData/transactionTypeIndex}"
+                                              select="onTransactionTypeChange" columns="3">
+                                <buttons>
+                                    <RadioButton text="AR - IC Receivable"/>
+                                    <RadioButton text="AP - IC Payable"/>
+                                    <RadioButton text="Accrual Journal"/>
+                                </buttons>
+                            </RadioButtonGroup>
+                            <Label text="Document Type"/>
+                            <Input
+                                value="{/headerData/documentTypeCode}"
+                                showValueHelp="true"
+                                valueHelpRequest="onDocTypeValueHelp"
+                                placeholder="Select document type"
+                                width="220px"/>
+                        </f:content>
+                    </f:SimpleForm>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+
+            <uxap:ObjectPageSubSection title="Tax Invoice" titleUppercase="false"
+                                       visible="{= ${/headerData/transactionType} === 'AR'}">
+                <uxap:blocks>
+                    <VBox>
+                        <CheckBox text="Generate Tax Invoice for this AR transaction"
+                                  selected="{/headerData/taxInvoiceRequired}"
+                                  select="onTaxInvoiceCheck"/>
+                        <Panel visible="{/headerData/taxInvoiceRequired}"
+                               headerText="Tax Invoice Details"
+                               backgroundDesign="Solid"
+                               class="sapUiSmallMarginTop">
+                            <content>
+                                <f:SimpleForm editable="true" layout="ResponsiveGridLayout"
+                                              labelSpanL="3" labelSpanM="4"
+                                              columnsL="1" columnsM="1">
+                                    <f:content>
+                                        <Label text="Invoice Date" required="true"/>
+                                        <DatePicker value="{/headerData/taxInvoiceDate}"
+                                                    displayFormat="dd.MM.yyyy" valueFormat="dd.MM.yyyy"
+                                                    placeholder="dd.MM.yyyy" width="180px"/>
+                                        <Label text="Invoice Number"/>
+                                        <Input value="{/headerData/taxInvoiceNumber}"
+                                               placeholder="Assigned on submission"
+                                               editable="false" width="300px"/>
+                                        <Label text="Invoice Description"/>
+                                        <Input value="{/headerData/taxInvoiceDescription}"
+                                               maxLength="100"
+                                               placeholder="e.g. Management fee recharge — Q1 2026"
+                                               width="100%"/>
+                                        <Label text="VAT Treatment"/>
+                                        <Select selectedKey="{/headerData/taxVATTreatment}">
+                                            <core:Item key="Exempt"    text="Exempt — no VAT on invoice"/>
+                                            <core:Item key="VAT"       text="VAT applicable — rate from tax code"/>
+                                            <core:Item key="ZeroRated" text="Zero-rated"/>
+                                        </Select>
+                                    </f:content>
+                                </f:SimpleForm>
+                                <MessageStrip
+                                    text="Invoice amount is derived from Total Interco Amount. The PDF is generated on submission and attached to both FI Journal Entry documents via GOS."
+                                    type="Information" showIcon="true"
+                                    class="sapUiSmallMarginBeginEnd sapUiSmallMarginBottom"/>
+                            </content>
+                        </Panel>
+                    </VBox>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+
+        </uxap:subSections>
+    </uxap:ObjectPageSection>
+
+</core:FragmentDefinition>

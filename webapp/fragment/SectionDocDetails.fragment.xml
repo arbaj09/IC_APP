@@ -1,0 +1,95 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout"
+    xmlns:uxap="sap.uxap">
+
+    <uxap:ObjectPageSection id="sectionDocDetails" title="Document Details" titleUppercase="false">
+        <uxap:subSections>
+            <uxap:ObjectPageSubSection title="Document Details" titleUppercase="false">
+                <uxap:blocks>
+                    <l:Grid defaultSpan="L4 M4 S12" hSpacing="2" vSpacing="1"
+                            class="sapUiSmallMarginTopBottom">
+                        <l:content>
+
+                            <VBox>
+                                <Label text="Document Date" required="true" class="sapUiTinyMarginBottom"/>
+                                <DatePicker value="{/headerData/documentDate}"
+                                            displayFormat="dd.MM.yyyy" valueFormat="dd.MM.yyyy"
+                                            placeholder="dd.MM.yyyy" change="onDocumentDateChange"
+                                            width="180px"/>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Posting Date" required="true" class="sapUiTinyMarginBottom"/>
+                                <DatePicker value="{/headerData/postingDate}"
+                                            displayFormat="dd.MM.yyyy" valueFormat="dd.MM.yyyy"
+                                            placeholder="dd.MM.yyyy" change="onPostingDateChange"
+                                            width="180px"/>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Fiscal Period / Year" class="sapUiTinyMarginBottom"/>
+                                <Text text="{parts: [{path: '/headerData/fiscalPeriod'}, {path: '/headerData/fiscalYear'}], formatter: '.formatter.fiscalPeriodText'}"
+                                      renderWhitespace="false"/>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Period Status" class="sapUiTinyMarginBottom"/>
+                                <ObjectStatus text="{/headerData/periodStatusText}"
+                                              state="{/headerData/periodStatusState}"
+                                              icon="{/headerData/periodStatusIcon}"/>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Reference" required="true" class="sapUiTinyMarginBottom"/>
+                                <Input value="{/headerData/reference}" maxLength="18"
+                                       placeholder="Up to 18 chars (BKPF-XBLNR)" width="240px"/>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Header Text" required="true" class="sapUiTinyMarginBottom"/>
+                                <Input value="{/headerData/headerText}" maxLength="50"
+                                       placeholder="Up to 50 chars" width="240px"/>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Currency" required="true" class="sapUiTinyMarginBottom"/>
+                                <Select selectedKey="{/headerData/currency}" width="120px">
+                                    <core:Item key="USD" text="USD"/>
+                                    <core:Item key="EUR" text="EUR"/>
+                                    <core:Item key="GBP" text="GBP"/>
+                                    <core:Item key="ZAR" text="ZAR"/>
+                                    <core:Item key="KES" text="KES"/>
+                                    <core:Item key="NGN" text="NGN"/>
+                                    <core:Item key="GHS" text="GHS"/>
+                                </Select>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="IC Transaction Type" required="true" class="sapUiTinyMarginBottom"/>
+                                <Select selectedKey="{/headerData/icTransactionType}" width="180px">
+                                    <core:Item key="Gross" text="Gross Amount"/>
+                                    <core:Item key="Net"   text="Net Amount"/>
+                                </Select>
+                            </VBox>
+
+                            <VBox>
+                                <Label text="Total Interco Amount" required="true" class="sapUiTinyMarginBottom"/>
+                                <HBox>
+                                    <Input value="{/headerData/totalIntercoAmount}"
+                                           type="Number" placeholder="0.00" textAlign="End"
+                                           change="onTotalAmountChange" width="200px"/>
+                                    <Text text="Gross — tax-inclusive"
+                                          class="sapUiSmallMarginBegin sapUiSmallMarginTop"/>
+                                </HBox>
+                            </VBox>
+
+                        </l:content>
+                    </l:Grid>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+        </uxap:subSections>
+    </uxap:ObjectPageSection>
+
+</core:FragmentDefinition>
