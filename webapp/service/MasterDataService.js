@@ -212,7 +212,7 @@ sap.ui.define([], function () {
             var sServiceRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
             var sFilter      = "CompanyCode eq '" + sCompanyCode +
                                "' and Customer eq '" + sCustomer + "'";
-            var sUrl = sServiceRoot + "I_CustomerCompany" +
+            var sUrl = sServiceRoot + "I_SupplierCompany" +
                        "?$filter=" + encodeURIComponent(sFilter) +
                        "&$select=ReconciliationAccount,Customer" +
                        "&$top=1";
@@ -278,26 +278,13 @@ sap.ui.define([], function () {
 
         // ── Internal: fetch CSRF token required for mutating OData V4 requests ─
         _fetchCsrfToken: function (sRoot) {
-            return new Promise(function (resolve, reject) {
+            return new Promise(function (resolve) {
                 jQuery.ajax({
                     url:    sRoot + "ZC_INTERCO_JE_HEADER?$top=0",
                     method: "GET",
                     headers: { "X-CSRF-Token": "Fetch", "OData-Version": "4.0" },
                     complete: function (oXHR) {
-                        var sToken  = oXHR.getResponseHeader("X-CSRF-Token");
-                        var sType   = (oXHR.getResponseHeader("Content-Type") || "").toLowerCase();
-                        var bSaml   = sType.indexOf("text/html") !== -1;
-
-                        if (!sToken || bSaml) {
-                            reject(new Error(
-                                "SAP authentication required.\n\n" +
-                                "The posting service requires an active session via the API endpoint.\n\n" +
-                                "Action needed: ask the SAP Basis team to expose ZSD_INTERCO_APP via a " +
-                                "Communication Arrangement and add the credentials to ui5.yaml."
-                            ));
-                            return;
-                        }
-                        resolve(sToken);
+                        resolve(oXHR.getResponseHeader("X-CSRF-Token") || "");
                     }
                 });
             });
@@ -371,51 +358,58 @@ sap.ui.define([], function () {
 
                 // ── Step 1: Create header ────────────────────────────────────
                 return new Promise(function (resolve, reject) {
+                
                     jQuery.ajax({
                         url:         sRoot + "ZC_INTERCO_JE_HEADER",
                         method:      "POST",
-                        dataType:    "json",
                         headers:     oHdrs,
                         contentType: "application/json",
                         data:        JSON.stringify(oHdrPayload),
-                        success:     function (oData) {
-                            resolve({ result: oData, hdrs: oHdrs });
+                        success:     function (oData) { 
+                            console.log("================================");
+    console.log("HEADER CREATE RESPONSE");
+    console.log(oData);
+    console.log("JSON =", JSON.stringify(oData));
+    console.log("Keys =", Object.keys(oData));
+    console.log("================================");
+                            resolve(
+                                { result: oData,
+                                 hdrs: oHdrs }
+                            ); 
                         },
-                        error:       function (oXHR, sStatus) {
-                            var sDetail = sStatus === "parseerror"
-                                ? "SAP returned an HTML authentication page — session not established."
-                                : parseError(oXHR);
-                            reject(new Error("Header creation failed [" + oXHR.status + "]: " + sDetail));
+                        error:       function (oXHR) {
+                            reject(new Error("Header creation failed [" + oXHR.status + "]: " + parseError(oXHR)));
                         }
                     });
                 });
 
             }).then(function (oCtx) {
                 // ── Step 2: Create items via _Item navigation ────────────────
-                var sDocId   = oCtx.result.accountingdocument_temp;
-                var bActive  = oCtx.result.IsActiveEntity === true;
-                var sKeyFrag = "ZC_INTERCO_JE_HEADER(accountingdocument_temp='" + sDocId +
-                               "',IsActiveEntity=" + bActive + ")";
+                var sDocId    = oCtx.result.accountingdocument_temp;
+               console.log("Result =", oCtx.result);
+console.log("Keys =", Object.keys(oCtx.result));
+console.log("Doc ID =", sDocId);
+                var bActive   = oCtx.result.IsActiveEntity === true;
+                var sKeyFrag  = "ZC_INTERCO_JE_HEADER(accountingdocument_temp='" + sDocId +
+                                "',IsActiveEntity=" + bActive + ")";
 
                 var pChain = Promise.resolve();
                 aItemPayloads.forEach(function (oItem) {
                     pChain = pChain.then(function () {
                         return new Promise(function (resolve, reject) {
+                                console.log("Posting Item");
+                    console.log(oItem);
                             jQuery.ajax({
                                 url:         sRoot + sKeyFrag + "/_Item",
                                 method:      "POST",
-                                dataType:    "json",
                                 headers:     oCtx.hdrs,
                                 contentType: "application/json",
                                 data:        JSON.stringify(oItem),
                                 success:     function () { resolve(); },
-                                error:       function (oXHR, sStatus) {
-                                    var sDetail = sStatus === "parseerror"
-                                        ? "SAP returned an HTML authentication page."
-                                        : parseError(oXHR);
+                                error:       function (oXHR) {
                                     reject(new Error(
                                         "Item " + oItem.referencedocumentitem +
-                                        " creation failed [" + oXHR.status + "]: " + sDetail
+                                        " creation failed [" + oXHR.status + "]: " + parseError(oXHR)
                                     ));
                                 }
                             });
@@ -434,22 +428,20 @@ sap.ui.define([], function () {
                 }
                 var sActivateUrl = sRoot + oCtx.sKeyFrag +
                                    "/com.sap.gateway.srvd.zsd_interco_app.v0001.Activate";
+                    console.log("Activate URL");
+                console.log(sActivateUrl);
                 return new Promise(function (resolve, reject) {
                     jQuery.ajax({
                         url:         sActivateUrl,
                         method:      "POST",
-                        dataType:    "json",
                         headers:     oCtx.hdrs,
                         contentType: "application/json",
                         data:        "{}",
                         success:     function (oData) {
                             resolve({ accountingdocument_temp: (oData && oData.accountingdocument_temp) || oCtx.docId });
                         },
-                        error:       function (oXHR, sStatus) {
-                            var sDetail = sStatus === "parseerror"
-                                ? "SAP returned an HTML authentication page."
-                                : parseError(oXHR);
-                            reject(new Error("Activation failed [" + oXHR.status + "]: " + sDetail));
+                        error:       function (oXHR) {
+                            reject(new Error("Activation failed [" + oXHR.status + "]: " + parseError(oXHR)));
                         }
                     });
                 });

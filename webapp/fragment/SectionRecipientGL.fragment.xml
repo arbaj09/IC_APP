@@ -1,45 +1,4 @@
-<!-- <core:FragmentDefinition
-    xmlns="sap.m"
-    xmlns:core="sap.ui.core"
-    xmlns:f="sap.ui.layout.form"
-    xmlns:uxap="sap.uxap">
 
-    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipient" titleUppercase="false">
-        <uxap:subSections>
-            <uxap:ObjectPageSubSection title="GL Coding — Recipent" titleUppercase="false">
-                <uxap:blocks>
-                    <VBox>
-                        <f:SimpleForm  editable="true" layout="ResponsiveGridLayout"
-                                      labelSpanL="4" labelSpanM="4" columnsL="1" columnsM="1" >
-                            <f:content>
-                                <Label text="Tax / VAT Code"/>
-                                <VBox>
-                                    <Select selectedKey="{/headerData/recipientTaxCode}"
-                                            change="onRecipientTaxCodeChange" width="220px"
-                                            enabled="{/appState/isEditMode}">
-                                        <core:Item key=""   text="(blank) — not applicable"/>
-                                        <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
-                                        <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
-                                        <core:Item key="V1" text="V1 — Standard VAT 15%"/>
-                                        <core:Item key="V2" text="V2 — Standard VAT 20%"/>
-                                        <core:Item key="V5" text="V5 — Reduced Rate 5%"/>
-                                        <core:Item key="VE" text="VE — VAT Exempt"/>
-                                    </Select>
-                                    <Text text="{/headerData/recipientCountry}" class="sapUiTinyMarginTop"/>
-                                </VBox>
-                                <Label text="Tax Amount"/>
-                                <ObjectStatus
-                                    text="{parts: [{path: '/headerData/recipientTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
-                                    state="{path: '/headerData/recipientTaxAmount', formatter: '.formatter.taxAmountState'}"/>
-                            </f:content>
-                        </f:SimpleForm>
-                    </VBox>
-                </uxap:blocks>
-            </uxap:ObjectPageSubSection>
-        </uxap:subSections>
-    </uxap:ObjectPageSection>
-
-</core:FragmentDefinition> -->
 
 
 
@@ -47,13 +6,17 @@
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
     xmlns:f="sap.ui.layout.form"
+    xmlns:t="sap.ui.table"
+    xmlns:trm="sap.ui.table.rowmodes"
     xmlns:uxap="sap.uxap">
 
-    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipient" titleUppercase="false">
+    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipeint" titleUppercase="false">
         <uxap:subSections>
-            <uxap:ObjectPageSubSection 
-             visible="{= ${/headerData/transactionType} === 'AR' }"
-            title="GL Coding — Recipient" titleUppercase="false">
+
+            <uxap:ObjectPageSubSection
+             title="Tax Code"
+           visible="{= ${/headerData/transactionType} === 'AR' }"
+             titleUppercase="false">
                 <uxap:blocks>
                     <VBox>
                         <f:SimpleForm editable="true" 
@@ -72,9 +35,8 @@
                             <f:content>
                                 <Label text="Tax / VAT Code" textAlign="Left"/>
                                 <VBox renderType="Bare">
-                                    <Select selectedKey="{/headerData/recipientTaxCode}"
-                                            change="onRecipientTaxCodeChange" width="220px"
-                                            enabled="{/appState/isEditMode}">
+                                    <Select selectedKey="{/headerData/initiatorTaxCode}"
+                                            change="onInitiatorTaxCodeChange" width="220px">
                                         <core:Item key=""    text="(blank) — not applicable"/>
                                         <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
                                         <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
@@ -83,17 +45,283 @@
                                         <core:Item key="V5" text="V5 — Reduced Rate 5%"/>
                                         <core:Item key="VE" text="VE — VAT Exempt"/>
                                     </Select>
-                                    <Text text="{/headerData/recipientCountry}" class="sapUiTinyMarginTop"/>
+                                    <Text text="{/headerData/initiatorCountry}" class="sapUiTinyMarginTop"/>
                                 </VBox>
+
                                 <Label text="Tax Amount" textAlign="Left"/>
                                 <ObjectStatus
-                                    text="{parts: [{path: '/headerData/recipientTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
-                                    state="{path: '/headerData/recipientTaxAmount', formatter: '.formatter.taxAmountState'}"/>
+                                    text="{parts: [{path: '/headerData/initiatorTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
+                                    state="{path: '/headerData/initiatorTaxAmount', formatter: '.formatter.taxAmountState'}"/>
                             </f:content>
                         </f:SimpleForm>
                     </VBox>
                 </uxap:blocks>
             </uxap:ObjectPageSubSection>
+
+            <uxap:ObjectPageSubSection title="GL Coding - Recipient" titleUppercase="false">
+                <uxap:blocks>
+                    <VBox width="100%">
+
+                        <Toolbar style="Standard" class="sapUiSmallMarginBottom sapMListHeader">
+                            <Label text="Company Code:"/>
+                            <Text text="{path: '/headerData/initiatorCC', formatter: '.formatter.nullable'}"
+                                  class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                            <Text text="{= ${/headerData/initiatorCCName} ? '(' + ${/headerData/initiatorCCName} + ')' : ''}"
+                                  class="sapUiSmallMarginEnd"/>
+                            <ToolbarSeparator/>
+                            <Label text="Currency:"/>
+                            <Text text="{path: '/headerData/currency', formatter: '.formatter.nullable'}"
+                                  class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                            <ToolbarSeparator/>
+                            <Label text="Tx Type:"/>
+                            <Text text="{/headerData/transactionType}"
+                                  class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                            <ToolbarSpacer/>
+                            <Text text="Read-only fields derived from Header sections"
+                                  class="sapUiTinyMarginEnd"/>
+                        </Toolbar>
+
+                        <Toolbar class="sapUiSmallMarginBottom">
+                            <Button text="Add Line" icon="sap-icon://add"
+                                    press="onAddInitiatorLine" type="Ghost"
+                                    enabled="{/appState/isEditMode}"/>
+                            <Button text="Validate (F7)" icon="sap-icon://sys-find-next"
+                                    press="onInitiatorValidate" type="Emphasized"
+                                    class="sapUiSmallMarginBegin"/>
+                            <ToolbarSeparator/>
+                            <Button text="Download Template" icon="sap-icon://download" type="Ghost"
+                                    tooltip="Download GL offset line template (BP clearing line excluded)"/>
+                            <ToolbarSpacer/>
+                            <Text text="{= 'Lines: ' + ${/initiatorLines}.length + ' (incl. BP clearing)'}"/>
+                        </Toolbar>
+
+                        <MessageStrip
+                            visible="{/initiatorValidation/visible}"
+                            text="{/initiatorValidation/text}"
+                            type="{/initiatorValidation/state}"
+                            showIcon="true" showCloseButton="false"
+                            class="sapUiSmallMarginBottom"/>
+
+                        <t:Table id="RecipeintGLTable"
+                                 rows="{/initiatorLines}"
+                                 selectionMode="None"
+                                 fixedColumnCount="4"
+                                 alternateRowColors="true"
+                                 columnHeaderHeight="36"
+                                 enableColumnReordering="false"
+                                 width="100%">
+                            <t:rowMode>
+                                <trm:Fixed rowCount="10" rowContentHeight="36"/>
+                            </t:rowMode>
+                            <t:columns>
+
+                                <t:Column width="55px" hAlign="Center">
+                                    <t:label><Label text="#"/></t:label>
+                                    <t:template>
+                                        <HBox justifyContent="Center" alignItems="Center">
+                                            <Text text="{rowNum}"/>
+                                            <core:Icon src="sap-icon://locked" size="0.75rem"
+                                                       visible="{isSystemLine}"
+                                                       class="sapUiTinyMarginBegin"
+                                                       color="var(--sapNeutralTextColor)"/>
+                                        </HBox>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="90px">
+                                    <t:label><Label text="D/C"/></t:label>
+                                    <t:template>
+                                        <Select selectedKey="{debitCredit}"
+                                                enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                                change="onGLLineChange" width="80px">
+                                            <core:Item key="S" text="Dr"/>
+                                            <core:Item key="H" text="Cr"/>
+                                        </Select>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="130px">
+                                    <t:label><Label text="GL Account *"/></t:label>
+                                    <t:template>
+                                        <Input value="{glAccount}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="GL Acct" change="onGLLineChange" width="120px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="130px">
+                                    <t:label><Label text="Bus.Partner"/></t:label>
+                                    <t:template>
+                                        <Input value="{businessPartner}" enabled="false" width="120px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="130px" hAlign="End">
+                                    <t:label><Label text="Amount (DC)"/></t:label>
+                                    <t:template>
+                                        <Input value="{amountDC}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               type="Number" textAlign="End" placeholder="0.00"
+                                               change="onGLLineChange" width="120px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Tax Code"/></t:label>
+                                    <t:template>
+                                        <Select selectedKey="{taxCode}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                                change="onGLLineChange" width="300px">
+                                            <core:Item key=""   text="—"/>
+                                            <core:Item key="A0" text="A0"/>
+                                            <core:Item key="S0" text="S0"/>
+                                            <core:Item key="V1" text="V1 (15%)"/>
+                                            <core:Item key="V2" text="V2 (20%)"/>
+                                            <core:Item key="V5" text="V5 (5%)"/>
+                                            <core:Item key="VE" text="VE"/>
+                                        </Select>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Trdg Ptnr"/></t:label>
+                                    <t:template><Text text="{tradingPartner}" wrapping="false"/></t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Ptnr PrCtr"/></t:label>
+                                    <t:template>
+                                        <Input value="{partnerPrCtr}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="100px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="120px">
+                                    <t:label><Label text="WBS Element"/></t:label>
+                                    <t:template>
+                                        <Input value="{wbsElement}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="110px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Cost Center"/></t:label>
+                                    <t:template>
+                                        <Input value="{costCenter}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="100px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Profit Center"/></t:label>
+                                    <t:template>
+                                        <Input value="{profitCenter}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="100px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Int.Order"/></t:label>
+                                    <t:template>
+                                        <Input value="{internalOrder}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="100px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="100px">
+                                    <t:label><Label text="Personnel"/></t:label>
+                                    <t:template>
+                                        <Input value="{personnel}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="90px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="Contract"/></t:label>
+                                    <t:template>
+                                        <Input value="{contract}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="100px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="100px">
+                                    <t:label><Label text="Ctr Type"/></t:label>
+                                    <t:template>
+                                        <Input value="{contractType}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                               placeholder="—" width="90px"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="120px">
+                                    <t:label><Label text="Assignment"/></t:label>
+                                    <t:template>
+                                        <Input value="{assignment}" placeholder="—" width="110px"
+                                               enabled="{/appState/isEditMode}"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="140px">
+                                    <t:label><Label text="Item Text *"/></t:label>
+                                    <t:template>
+                                        <Input value="{itemText}" placeholder="Item text"
+                                               change="onGLLineChange" width="130px"
+                                               enabled="{/appState/isEditMode}"/>
+                                    </t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="LineRef1"/></t:label>
+                                    <t:template><Input value="{lineRef1}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="LineRef2"/></t:label>
+                                    <t:template><Input value="{lineRef2}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
+                                </t:Column>
+
+                                <t:Column width="110px">
+                                    <t:label><Label text="LineRef3"/></t:label>
+                                    <t:template><Input value="{lineRef3}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
+                                </t:Column>
+
+                                <t:Column width="50px" hAlign="Center">
+                                    <t:label><Label text=""/></t:label>
+                                    <t:template>
+                                        <Button icon="sap-icon://delete" type="Transparent"
+                                                visible="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                                press="onDeleteInitiatorLine"
+                                                tooltip="Delete line"/>
+                                    </t:template>
+                                </t:Column>
+
+                            </t:columns>
+                        </t:Table>
+
+                        <Toolbar style="Standard" class="sapUiSmallMarginTop sapMListFooter">
+                            <Label text="Total Debits:"/>
+                            <ObjectStatus text="{/initiatorBalance/totalDebits}" state="Success"
+                                          class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                            <ToolbarSeparator/>
+                            <Label text="Total Credits:"/>
+                            <ObjectStatus text="{/initiatorBalance/totalCredits}" state="Error"
+                                          class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                            <ToolbarSeparator/>
+                            <Label text="Net (Dr − Cr):"/>
+                            <ObjectStatus
+                                text="{/initiatorBalance/netAmount}"
+                                state="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedState'}"
+                                class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                            <ToolbarSeparator/>
+                            <ObjectStatus
+                                text="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedText'}"
+                                state="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedState'}"
+                                icon="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedIcon'}"
+                                inverted="true"/>
+                            <ToolbarSpacer/>
+                            <Text text="Dr and Cr amounts must sum to zero. Validate before submitting."/>
+                        </Toolbar>
+
+                    </VBox>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+
         </uxap:subSections>
     </uxap:ObjectPageSection>
 
