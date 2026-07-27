@@ -165,11 +165,15 @@ sap.ui.define([], function () {
         },
 
         /**
-         * Retrieves the FI Reconciliation Account (KNBK-AKONT) for the given
-         * CompanyCode / Customer pair from the SAP standard entity I_CustomerCompany.
+         * Retrieves the FI Reconciliation Account (LFB1-AKONT) for the given
+         * CompanyCode / Supplier pair from the SAP standard entity I_SupplierCompany.
          *
-         * The ReconciliationAccount is used as the GL Account on the System BP
-         * Clearing Line (row 0 of initiatorLines), replacing the mock `konts` value.
+         * Used to populate the GL Account on the System BP Clearing Line (row 0 of
+         * initiatorLines) in the Initiator GL Coding block.
+         *
+         * Called with:
+         *   sCompanyCode = Recipient Company Code
+         *   sSupplier    = Recipient Business Partner (Supplier number)
          *
          * Phase 1 (active): returns mock data so the controller chain works end-to-end
          *   without a live backend.
@@ -178,29 +182,104 @@ sap.ui.define([], function () {
          *   changes are required.
          *
          * OData V4: GET /sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/
+         *               I_SupplierCompany
+         *               ?$filter=CompanyCode eq '{sCompanyCode}' and Supplier eq '{sSupplier}'
+         *               &$select=ReconciliationAccount,Supplier
+         *               &$top=1
+         *
+         * @param {string} sCompanyCode  Recipient company code
+         * @param {string} sSupplier     Recipient Business Partner (Supplier number)
+         * @returns {Promise<{reconciliationAccount: string, supplier: string} | null>}
+         *          Resolves to null when no match is found; rejects on network error.
+         */
+        getReconciliationAccount: function (sCompanyCode, sSupplier) {
+            // ── PHASE FLAG ────────────────────────────────────────────────────────
+            // Set to true when the communication arrangement for zsb_interco_app
+            // is active and USER_SAP_COM_BTP has authorization for I_SupplierCompany.
+            var USE_LIVE_API = true;
+
+            if (!USE_LIVE_API) {
+                // Phase 1: mock — keyed by company code, returns AP reconciliation account.
+                var _aMock = {
+                    "1110": "21100000", "1002": "21100000", "1006": "21100000",
+                    "1150": "21100000", "1177": "21100000", "1337": "21100000",
+                    "1488": "21100000", "1790": "21100000"
+                };
+                return Promise.resolve({
+                    reconciliationAccount: _aMock[sCompanyCode] || "21100000",
+                    supplier: sSupplier
+                });
+            }
+
+            // Phase 2: live OData V4 — activate by setting USE_LIVE_API = true above.
+            var sServiceRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+            var sFilter      = "CompanyCode eq '" + sCompanyCode +
+                               "' and Supplier eq '" + sSupplier + "'";
+            var sUrl = sServiceRoot + "I_SupplierCompany" +
+                       "?$filter=" + encodeURIComponent(sFilter) +
+                       "&$select=ReconciliationAccount,Supplier" +
+                       "&$top=1";
+
+            return new Promise(function (resolve, reject) {
+                jQuery.ajax({
+                    url:    sUrl,
+                    method: "GET",
+                    headers: {
+                        "Accept":           "application/json",
+                        "OData-Version":    "4.0",
+                        "OData-MaxVersion": "4.0"
+                    },
+                    success: function (oData) {
+                        var aValue = (oData && oData.value) || [];
+                        if (!aValue.length) {
+                            resolve(null);
+                            return;
+                        }
+                        resolve({
+                            reconciliationAccount: aValue[0].ReconciliationAccount,
+                            supplier:              aValue[0].Supplier
+                        });
+                    },
+                    error: function (oXHR, sStatus, sError) {
+                        reject(new Error(
+                            "I_SupplierCompany request failed [" + oXHR.status + " " + sError + "]" +
+                            " for CompanyCode=" + sCompanyCode + ", Supplier=" + sSupplier
+                        ));
+                    }
+                });
+            });
+        },
+
+        /**
+         * Retrieves the FI Reconciliation Account (KNBK-AKONT) for the given
+         * CompanyCode / Customer pair from the SAP standard entity I_CustomerCompany.
+         *
+         * Used to populate the GL Account on the System BP Clearing Line (row 0 of
+         * recipientLines) in the Recipient GL Coding block.
+         *
+         * Called with:
+         *   sCompanyCode = Initiator Company Code
+         *   sCustomer    = Initiator Business Partner (Customer number in recipient's books)
+         *
+         * OData V4: GET /sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/
          *               I_CustomerCompany
          *               ?$filter=CompanyCode eq '{sCompanyCode}' and Customer eq '{sCustomer}'
          *               &$select=ReconciliationAccount,Customer
          *               &$top=1
          *
-         * @param {string} sCompanyCode  Initiator company code (posting entity)
-         * @param {string} sCustomer     Recipient entity's SAP Customer number
+         * @param {string} sCompanyCode  Initiator company code
+         * @param {string} sCustomer     Initiator Business Partner (Customer number)
          * @returns {Promise<{reconciliationAccount: string, customer: string} | null>}
          *          Resolves to null when no match is found; rejects on network error.
          */
-        getReconciliationAccount: function (sCompanyCode, sCustomer) {
-            // ── PHASE FLAG ────────────────────────────────────────────────────────
-            // Set to true when the communication arrangement for zsb_interco_app
-            // is active and USER_SAP_COM_BTP has authorization for I_CustomerCompany.
+        getReconciliationAccountCustomer: function (sCompanyCode, sCustomer) {
             var USE_LIVE_API = true;
 
             if (!USE_LIVE_API) {
-                // Phase 1: mock — returns synchronously so the clearing line updates
-                // immediately without a network round-trip.
                 var _aMock = {
-                    "M111": "12100000", "M040": "12100000", "M042": "12100000",
-                    "M150": "12100000", "M177": "12100000", "M337": "12100000",
-                    "M488": "12100000", "M790": "12100000"
+                    "1110": "12100000", "1002": "12100000", "1006": "12100000",
+                    "1150": "12100000", "1177": "12100000", "1337": "12100000",
+                    "1488": "12100000", "1790": "12100000"
                 };
                 return Promise.resolve({
                     reconciliationAccount: _aMock[sCompanyCode] || "12100000",
@@ -208,11 +287,10 @@ sap.ui.define([], function () {
                 });
             }
 
-            // Phase 2: live OData V4 — activate by setting USE_LIVE_API = true above.
             var sServiceRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
             var sFilter      = "CompanyCode eq '" + sCompanyCode +
                                "' and Customer eq '" + sCustomer + "'";
-            var sUrl = sServiceRoot + "I_SupplierCompany" +
+            var sUrl = sServiceRoot + "I_CustomerCompany" +
                        "?$filter=" + encodeURIComponent(sFilter) +
                        "&$select=ReconciliationAccount,Customer" +
                        "&$top=1";

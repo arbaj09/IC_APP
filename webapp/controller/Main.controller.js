@@ -73,6 +73,7 @@ sap.ui.define([
                     recipientBP: "",
                     recipientBPName: "",
                     reconciliationAccount: "",
+                    recipientReconciliationAccount: "",
                     recipientCC: "",
                     recipientCCName: "",
                     partyValidationVisible: false,
@@ -149,6 +150,45 @@ sap.ui.define([
                     text: "Not yet validated."
                 },
 
+                recipientLines: [
+                    {
+                        rowNum: 1,
+                        isSystemLine: true,
+                        debitCredit: Constants.DC_INDICATOR.CREDIT,
+                        glAccount: "—",
+                        businessPartner: "—",
+                        amountDC: "0.00",
+                        taxCode: "",
+                        tradingPartner: "—",
+                        partnerPrCtr: "",
+                        wbsElement: "",
+                        costCenter: "",
+                        profitCenter: "",
+                        internalOrder: "",
+                        personnel: "",
+                        contract: "",
+                        contractType: "",
+                        assignment: "",
+                        itemText: "",
+                        lineRef1: "",
+                        lineRef2: "",
+                        lineRef3: ""
+                    }
+                ],
+
+                recipientBalance: {
+                    totalDebits: "0.00",
+                    totalCredits: "0.00",
+                    netAmount: "0.00",
+                    isBalanced: false
+                },
+
+                recipientValidation: {
+                    visible: false,
+                    state: "None",
+                    text: "Not yet validated."
+                },
+
                 workflow: {
                     status: Constants.WORKFLOW_STATUS.DRAFT,
                     statusState: "Warning",
@@ -192,6 +232,7 @@ sap.ui.define([
 
             this._deriveDocumentType(iIdx);
             this._syncBPClearingLine();
+            this._syncRecipientBPClearingLine();
         },
 
         _deriveDocumentType: function (iIdx) {
@@ -261,7 +302,9 @@ sap.ui.define([
             oModel.setProperty("/headerData/partyValidationVisible", false);
 
             this._propagateTradingPartner();
+            this._propagateRecipientTradingPartner();
             this._syncBPClearingLine();
+            this._syncRecipientBPClearingLine();
             this._validateParties();
 
             var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
@@ -320,34 +363,59 @@ sap.ui.define([
                 oModel.setProperty("/headerData/recipientBPName", oFwd.bpName);
                 oModel.setProperty("/headerData/initiatorBP", oReverse ? oReverse.bp : "—");
 
-                // Stage 2: Fetch ReconciliationAccount from I_CustomerCompany.
-                // CompanyCode = initiator CC (the posting entity).
-                // Customer    = the recipient entity's SAP Customer number.
+                // Stage 2: Fetch reconciliation accounts for both GL blocks in parallel.
+                // Initiator GL: I_SupplierCompany(recipientCC, recipientBP)
+                // Recipient GL: I_CustomerCompany(initiatorCC, initiatorBP)
+                var sInitiatorBPForRecon = oReverse ? oReverse.bp : "";
+
                 var fnFinalize = function () {
                     oModel.setProperty("/appState/isBusy", false);
                     that._validateParties();
                     that._syncBPClearingLine();
                     that._propagateTradingPartner();
+                    that._syncRecipientBPClearingLine();
+                    that._propagateRecipientTradingPartner();
                 };
 
-                MasterDataService.getReconciliationAccount(sIniCC, sCustomer)
-                    .then(function (oResult) {
-                        // Stage 3 (success): write the live reconciliation account.
-                        var sReconAcct = oResult ? oResult.reconciliationAccount : sKontsFallback;
-                        oModel.setProperty("/headerData/reconciliationAccount", sReconAcct);
-                        fnFinalize();
-                    }, function (oError) {
-                        // Stage 3 (fallback): use T001U konts (not the customer number) so
-                        // GL Account and Business Partner remain distinct fields.
+                var pSupplier = MasterDataService.getReconciliationAccount(sRecCC, sCustomer)
+                    .catch(function (oError) {
                         jQuery.sap.log.error(
-                            "[ZFI_INTERCO] getReconciliationAccount failed for CC=" + sIniCC +
-                            ", Customer=" + sCustomer + ". Falling back to T001U konts. " +
+                            "[ZFI_INTERCO] I_SupplierCompany failed for CC=" + sRecCC +
+                            ", Supplier=" + sCustomer + ". " +
                             (oError && oError.message ? oError.message : "")
                         );
-                        oModel.setProperty("/headerData/reconciliationAccount", sKontsFallback);
-                        MessageToast.show("GL account derivation failed — using T001U clearing account as fallback.");
-                        fnFinalize();
+                        return null;
                     });
+
+                var pCustomer = MasterDataService.getReconciliationAccountCustomer(sIniCC, sInitiatorBPForRecon)
+                    .catch(function (oError) {
+                        jQuery.sap.log.error(
+                            "[ZFI_INTERCO] I_CustomerCompany failed for CC=" + sIniCC +
+                            ", Customer=" + sInitiatorBPForRecon + ". " +
+                            (oError && oError.message ? oError.message : "")
+                        );
+                        return null;
+                    });
+
+                Promise.all([pSupplier, pCustomer]).then(function (aReconResults) {
+                    var sReconAcct = aReconResults[0]
+                        ? aReconResults[0].reconciliationAccount
+                        : sKontsFallback;
+                    oModel.setProperty("/headerData/reconciliationAccount", sReconAcct);
+                    if (!aReconResults[0]) {
+                        MessageToast.show("Initiator GL account derivation failed — using T001U clearing account as fallback.");
+                    }
+
+                    var sRecipReconAcct = aReconResults[1]
+                        ? aReconResults[1].reconciliationAccount
+                        : sInitiatorBPForRecon;
+                    oModel.setProperty("/headerData/recipientReconciliationAccount", sRecipReconAcct);
+                    if (!aReconResults[1]) {
+                        MessageToast.show("Recipient GL account derivation failed — using BP number as fallback.");
+                    }
+
+                    fnFinalize();
+                });
 
             }, function () {
                 oModel.setProperty("/appState/isBusy", false);
@@ -550,6 +618,7 @@ sap.ui.define([
 
             this._recalculateTax();
             this._syncBPClearingLine();
+            this._syncRecipientBPClearingLine();
             this._recalculateBalance();
         },
 
@@ -561,10 +630,12 @@ sap.ui.define([
             this._recalculateTax();
             this._syncBPClearingLine();
             this._recalculateBalance();
+            this._syncRecipientBPClearingLine();
         },
 
         onRecipientTaxCodeChange: function () {
             this._recalculateTax();
+            this._syncRecipientBPClearingLine();
         },
 
         _recalculateTax: function () {
@@ -662,7 +733,7 @@ sap.ui.define([
             _rowCounter++;
             var oModel = this.getView().getModel();
             var aLines = oModel.getProperty("/initiatorLines") || [];
-            var sIniCC = oModel.getProperty("/headerData/initiatorCC") || "";
+            var sRecCC = oModel.getProperty("/headerData/recipientCC") || "";
             var sIniTaxCode = oModel.getProperty("/headerData/initiatorTaxCode") || "";
 
             aLines.push({
@@ -673,7 +744,7 @@ sap.ui.define([
                 businessPartner: "",
                 amountDC: "",
                 taxCode: sIniTaxCode,
-                tradingPartner: sIniCC,
+                tradingPartner: sRecCC,
                 partnerPrCtr: "",
                 wbsElement: "",
                 costCenter: "",
@@ -752,11 +823,12 @@ sap.ui.define([
             var fTaxAmt        = parseFloat(oModel.getProperty("/headerData/initiatorTaxAmount")) || 0;
             var sIniTaxCode    = oModel.getProperty("/headerData/initiatorTaxCode") || "";
 
-            // GL Account = ReconciliationAccount from I_CustomerCompany (KNBK-AKONT).
-            // Business Partner = Initiator BP (how the initiator entity appears in SAP as a customer).
+            // GL Account = ReconciliationAccount from I_SupplierCompany(recipientCC, recipientBP).
+            // Business Partner = Recipient BP (how the recipient appears as a supplier in initiator's books).
+            // Trading Partner  = Recipient Company Code (the intercompany counterpart).
             aLines[0].glAccount       = sReconAccount;
-            aLines[0].businessPartner = sInitiatorBP;
-            aLines[0].tradingPartner  = oModel.getProperty("/headerData/initiatorCC") || "—";
+            aLines[0].businessPartner = sRecipientBP;
+            aLines[0].tradingPartner  = oModel.getProperty("/headerData/recipientCC") || "—";
             aLines[0].amountDC        = (fGross - fTaxAmt).toFixed(2);
             aLines[0].taxCode         = sIniTaxCode;
             aLines[0].debitCredit     = sTxType === Constants.TRANSACTION_TYPE.AP
@@ -770,11 +842,192 @@ sap.ui.define([
         _propagateTradingPartner: function () {
             var oModel = this.getView().getModel();
             var aLines = oModel.getProperty("/initiatorLines") || [];
+            var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim();
+            aLines.forEach(function (oLine) {
+                oLine.tradingPartner = sRecCC || "—";
+            });
+            oModel.setProperty("/initiatorLines", aLines);
+        },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // GL Coding — Recipient
+        // ─────────────────────────────────────────────────────────────────────
+
+        onAddRecipientLine: function () {
+            var oModel = this.getView().getModel();
+            var aLines = oModel.getProperty("/recipientLines") || [];
+            var sIniCC = oModel.getProperty("/headerData/initiatorCC") || "";
+            var sRecTaxCode = oModel.getProperty("/headerData/recipientTaxCode") || "";
+
+            aLines.push({
+                rowNum: aLines.length + 1,
+                isSystemLine: false,
+                debitCredit: Constants.DC_INDICATOR.DEBIT,
+                glAccount: "",
+                businessPartner: "",
+                amountDC: "",
+                taxCode: sRecTaxCode,
+                tradingPartner: sIniCC,
+                partnerPrCtr: "",
+                wbsElement: "",
+                costCenter: "",
+                profitCenter: "",
+                internalOrder: "",
+                personnel: "",
+                contract: "",
+                contractType: "",
+                assignment: "",
+                itemText: "",
+                lineRef1: "",
+                lineRef2: "",
+                lineRef3: ""
+            });
+
+            oModel.setProperty("/recipientLines", aLines);
+            this._recalculateRecipientBalance();
+        },
+
+        onDeleteRecipientLine: function (oEvent) {
+            var oModel = this.getView().getModel();
+            var oCtx = oEvent.getSource().getBindingContext();
+            var sPath = oCtx.getPath();
+            var iIndex = parseInt(sPath.split("/").pop(), 10);
+
+            var aLines = oModel.getProperty("/recipientLines");
+            if (aLines[iIndex] && aLines[iIndex].isSystemLine) {
+                MessageToast.show("BP clearing line cannot be deleted.");
+                return;
+            }
+            aLines.splice(iIndex, 1);
+            aLines.forEach(function (oLine, i) { oLine.rowNum = i + 1; });
+            oModel.setProperty("/recipientLines", aLines);
+            this._recalculateRecipientBalance();
+        },
+
+        onRecipientGLLineChange: function () {
+            this._recalculateRecipientBalance();
+        },
+
+        _recalculateRecipientBalance: function () {
+            var oModel = this.getView().getModel();
+            var aLines = oModel.getProperty("/recipientLines") || [];
+            var fTotalDr = 0, fTotalCr = 0;
+
+            aLines.forEach(function (oLine) {
+                var fAmt = parseFloat(String(oLine.amountDC).replace(/[^0-9.\-]/g, "")) || 0;
+                if (oLine.debitCredit === Constants.DC_INDICATOR.DEBIT) {
+                    fTotalDr += fAmt;
+                } else {
+                    fTotalCr += fAmt;
+                }
+            });
+
+            var fNet = fTotalDr - fTotalCr;
+            var bBalanced = Math.abs(fNet) < Constants.BALANCE_TOLERANCE;
+
+            oModel.setProperty("/recipientBalance", {
+                totalDebits: fTotalDr.toFixed(2),
+                totalCredits: fTotalCr.toFixed(2),
+                netAmount: fNet.toFixed(2),
+                isBalanced: bBalanced
+            });
+        },
+
+        _syncRecipientBPClearingLine: function () {
+            var oModel = this.getView().getModel();
+            var aLines = oModel.getProperty("/recipientLines");
+            if (!aLines || !aLines.length) return;
+
+            var sTxType        = oModel.getProperty("/headerData/transactionType");
+            var sInitiatorBP   = oModel.getProperty("/headerData/initiatorBP") || "—";
+            var sReconAccount  = oModel.getProperty("/headerData/recipientReconciliationAccount") || sInitiatorBP;
+            var fGross         = parseFloat(oModel.getProperty("/headerData/totalIntercoAmount")) || 0;
+            var fTaxAmt        = parseFloat(oModel.getProperty("/headerData/recipientTaxAmount")) || 0;
+            var sRecTaxCode    = oModel.getProperty("/headerData/recipientTaxCode") || "";
+
+            // GL Account = ReconciliationAccount from I_CustomerCompany(initiatorCC, initiatorBP).
+            // Business Partner = Initiator BP (how the initiator appears as a customer in recipient's books).
+            // Trading Partner  = Initiator Company Code (the intercompany counterpart).
+            aLines[0].glAccount       = sReconAccount;
+            aLines[0].businessPartner = sInitiatorBP;
+            aLines[0].tradingPartner  = oModel.getProperty("/headerData/initiatorCC") || "—";
+            aLines[0].amountDC        = (fGross - fTaxAmt).toFixed(2);
+            aLines[0].taxCode         = sRecTaxCode;
+            aLines[0].debitCredit     = sTxType === Constants.TRANSACTION_TYPE.AP
+                ? Constants.DC_INDICATOR.DEBIT
+                : Constants.DC_INDICATOR.CREDIT;
+
+            oModel.setProperty("/recipientLines", aLines);
+            this._recalculateRecipientBalance();
+        },
+
+        _propagateRecipientTradingPartner: function () {
+            var oModel = this.getView().getModel();
+            var aLines = oModel.getProperty("/recipientLines") || [];
             var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim();
             aLines.forEach(function (oLine) {
                 oLine.tradingPartner = sIniCC || "—";
             });
-            oModel.setProperty("/initiatorLines", aLines);
+            oModel.setProperty("/recipientLines", aLines);
+        },
+
+        onRecipientValidate: function () {
+            var oModel = this.getView().getModel();
+            oModel.setProperty("/appState/isBusy", true);
+
+            var that = this;
+            setTimeout(function () {
+                var aMessages = [];
+
+                function addMsg(type, cls, num, text) {
+                    aMessages.push({ type: type, msgClass: cls, msgNum: num, text: text });
+                }
+
+                var aLines = oModel.getProperty("/recipientLines") || [];
+                var aUserLines = aLines.filter(function (l) { return !l.isSystemLine; });
+
+                var oHeader = oModel.getProperty("/headerData");
+                if (!oHeader.initiatorCC) addMsg("E", "ZFI", "001", "Initiator Company Code is required.");
+                if (!oHeader.recipientCC) addMsg("E", "ZFI", "002", "Recipient Company Code is required.");
+                if (!oHeader.postingDate) addMsg("E", "ZFI", "003", "Posting Date is required.");
+
+                if (aUserLines.length === 0) {
+                    addMsg("E", "ZFI", "004", "At least one G/L line item must be entered.");
+                }
+
+                aUserLines.forEach(function (line, idx) {
+                    if (!line.glAccount) {
+                        addMsg("E", "ZFI", "005", "Line " + (idx + 2) + ": G/L Account is missing.");
+                    }
+                    if (!line.amountDC || parseFloat(line.amountDC) === 0) {
+                        addMsg("E", "ZFI", "006", "Line " + (idx + 2) + ": Amount must be greater than zero.");
+                    }
+                });
+
+                var oBalance = oModel.getProperty("/recipientBalance");
+                if (!oBalance.isBalanced) {
+                    addMsg("E", "ZFI", "007", "Document is not in balance. Net difference: " + oBalance.netAmount);
+                }
+
+                oModel.setProperty("/appState/isBusy", false);
+
+                var bHasError = aMessages.some(function (m) { return m.type === "E"; });
+                if (bHasError) {
+                    oModel.setProperty("/recipientValidation", {
+                        visible: true,
+                        state: "Error",
+                        text: "Validation failed with " + aMessages.length + " error(s)."
+                    });
+                    MessageBox.error("Validation failed. Please review the highlighted errors.");
+                } else {
+                    oModel.setProperty("/recipientValidation", {
+                        visible: true,
+                        state: "Success",
+                        text: "All checks passed successfully. Document is ready to post or submit."
+                    });
+                    MessageToast.show("Validation successful!");
+                }
+            }, 500);
         },
 
         onInitiatorValidate: function () {

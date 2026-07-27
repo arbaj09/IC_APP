@@ -1,7 +1,5 @@
 
 
-
-
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
@@ -10,7 +8,7 @@
     xmlns:trm="sap.ui.table.rowmodes"
     xmlns:uxap="sap.uxap">
 
-    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipeint" titleUppercase="false">
+    <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipient" titleUppercase="false">
         <uxap:subSections>
 
             <uxap:ObjectPageSubSection
@@ -19,24 +17,24 @@
              titleUppercase="false">
                 <uxap:blocks>
                     <VBox>
-                        <f:SimpleForm editable="true" 
+                        <f:SimpleForm editable="true"
                                       layout="ResponsiveGridLayout"
                                       labelSpanXL="2"
-                                      labelSpanL="2" 
-                                      labelSpanM="3" 
+                                      labelSpanL="2"
+                                      labelSpanM="3"
                                       labelSpanS="12"
                                       adjustLabelSpan="false"
                                       emptySpanXL="0"
                                       emptySpanL="0"
                                       emptySpanM="0"
                                       emptySpanS="0"
-                                      columnsL="1" 
+                                      columnsL="1"
                                       columnsM="1">
                             <f:content>
                                 <Label text="Tax / VAT Code" textAlign="Left"/>
                                 <VBox renderType="Bare">
-                                    <Select selectedKey="{/headerData/initiatorTaxCode}"
-                                            change="onInitiatorTaxCodeChange" width="220px">
+                                    <Select selectedKey="{/headerData/recipientTaxCode}"
+                                            change="onRecipientTaxCodeChange" width="220px">
                                         <core:Item key=""    text="(blank) — not applicable"/>
                                         <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
                                         <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
@@ -45,13 +43,13 @@
                                         <core:Item key="V5" text="V5 — Reduced Rate 5%"/>
                                         <core:Item key="VE" text="VE — VAT Exempt"/>
                                     </Select>
-                                    <Text text="{/headerData/initiatorCountry}" class="sapUiTinyMarginTop"/>
+                                    <Text text="{/headerData/recipientCountry}" class="sapUiTinyMarginTop"/>
                                 </VBox>
 
                                 <Label text="Tax Amount" textAlign="Left"/>
                                 <ObjectStatus
-                                    text="{parts: [{path: '/headerData/initiatorTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
-                                    state="{path: '/headerData/initiatorTaxAmount', formatter: '.formatter.taxAmountState'}"/>
+                                    text="{parts: [{path: '/headerData/recipientTaxAmount'}, {path: '/headerData/currency'}], formatter: '.formatter.amountWithCurrency'}"
+                                    state="{path: '/headerData/recipientTaxAmount', formatter: '.formatter.taxAmountState'}"/>
                             </f:content>
                         </f:SimpleForm>
                     </VBox>
@@ -64,9 +62,9 @@
 
                         <Toolbar style="Standard" class="sapUiSmallMarginBottom sapMListHeader">
                             <Label text="Company Code:"/>
-                            <Text text="{path: '/headerData/initiatorCC', formatter: '.formatter.nullable'}"
+                            <Text text="{path: '/headerData/recipientCC', formatter: '.formatter.nullable'}"
                                   class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
-                            <Text text="{= ${/headerData/initiatorCCName} ? '(' + ${/headerData/initiatorCCName} + ')' : ''}"
+                            <Text text="{= ${/headerData/recipientCCName} ? '(' + ${/headerData/recipientCCName} + ')' : ''}"
                                   class="sapUiSmallMarginEnd"/>
                             <ToolbarSeparator/>
                             <Label text="Currency:"/>
@@ -83,27 +81,27 @@
 
                         <Toolbar class="sapUiSmallMarginBottom">
                             <Button text="Add Line" icon="sap-icon://add"
-                                    press="onAddInitiatorLine" type="Ghost"
+                                    press="onAddRecipientLine" type="Ghost"
                                     enabled="{/appState/isEditMode}"/>
                             <Button text="Validate (F7)" icon="sap-icon://sys-find-next"
-                                    press="onInitiatorValidate" type="Emphasized"
+                                    press="onRecipientValidate" type="Emphasized"
                                     class="sapUiSmallMarginBegin"/>
                             <ToolbarSeparator/>
                             <Button text="Download Template" icon="sap-icon://download" type="Ghost"
                                     tooltip="Download GL offset line template (BP clearing line excluded)"/>
                             <ToolbarSpacer/>
-                            <Text text="{= 'Lines: ' + ${/initiatorLines}.length + ' (incl. BP clearing)'}"/>
+                            <Text text="{= 'Lines: ' + ${/recipientLines}.length + ' (incl. BP clearing)'}"/>
                         </Toolbar>
 
                         <MessageStrip
-                            visible="{/initiatorValidation/visible}"
-                            text="{/initiatorValidation/text}"
-                            type="{/initiatorValidation/state}"
+                            visible="{/recipientValidation/visible}"
+                            text="{/recipientValidation/text}"
+                            type="{/recipientValidation/state}"
                             showIcon="true" showCloseButton="false"
                             class="sapUiSmallMarginBottom"/>
 
-                        <t:Table id="RecipeintGLTable"
-                                 rows="{/initiatorLines}"
+                        <t:Table id="RecipientGLTable"
+                                 rows="{/recipientLines}"
                                  selectionMode="None"
                                  fixedColumnCount="4"
                                  alternateRowColors="true"
@@ -133,7 +131,7 @@
                                     <t:template>
                                         <Select selectedKey="{debitCredit}"
                                                 enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
-                                                change="onGLLineChange" width="80px">
+                                                change="onRecipientGLLineChange" width="80px">
                                             <core:Item key="S" text="Dr"/>
                                             <core:Item key="H" text="Cr"/>
                                         </Select>
@@ -144,7 +142,7 @@
                                     <t:label><Label text="GL Account *"/></t:label>
                                     <t:template>
                                         <Input value="{glAccount}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
-                                               placeholder="GL Acct" change="onGLLineChange" width="120px"/>
+                                               placeholder="GL Acct" change="onRecipientGLLineChange" width="120px"/>
                                     </t:template>
                                 </t:Column>
 
@@ -160,7 +158,7 @@
                                     <t:template>
                                         <Input value="{amountDC}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                type="Number" textAlign="End" placeholder="0.00"
-                                               change="onGLLineChange" width="120px"/>
+                                               change="onRecipientGLLineChange" width="120px"/>
                                     </t:template>
                                 </t:Column>
 
@@ -168,7 +166,7 @@
                                     <t:label><Label text="Tax Code"/></t:label>
                                     <t:template>
                                         <Select selectedKey="{taxCode}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
-                                                change="onGLLineChange" width="300px">
+                                                change="onRecipientGLLineChange" width="300px">
                                             <core:Item key=""   text="—"/>
                                             <core:Item key="A0" text="A0"/>
                                             <core:Item key="S0" text="S0"/>
@@ -261,7 +259,7 @@
                                     <t:label><Label text="Item Text *"/></t:label>
                                     <t:template>
                                         <Input value="{itemText}" placeholder="Item text"
-                                               change="onGLLineChange" width="130px"
+                                               change="onRecipientGLLineChange" width="130px"
                                                enabled="{/appState/isEditMode}"/>
                                     </t:template>
                                 </t:Column>
@@ -286,7 +284,7 @@
                                     <t:template>
                                         <Button icon="sap-icon://delete" type="Transparent"
                                                 visible="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
-                                                press="onDeleteInitiatorLine"
+                                                press="onDeleteRecipientLine"
                                                 tooltip="Delete line"/>
                                     </t:template>
                                 </t:Column>
@@ -296,23 +294,23 @@
 
                         <Toolbar style="Standard" class="sapUiSmallMarginTop sapMListFooter">
                             <Label text="Total Debits:"/>
-                            <ObjectStatus text="{/initiatorBalance/totalDebits}" state="Success"
+                            <ObjectStatus text="{/recipientBalance/totalDebits}" state="Success"
                                           class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
                             <ToolbarSeparator/>
                             <Label text="Total Credits:"/>
-                            <ObjectStatus text="{/initiatorBalance/totalCredits}" state="Error"
+                            <ObjectStatus text="{/recipientBalance/totalCredits}" state="Error"
                                           class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
                             <ToolbarSeparator/>
                             <Label text="Net (Dr − Cr):"/>
                             <ObjectStatus
-                                text="{/initiatorBalance/netAmount}"
-                                state="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedState'}"
+                                text="{/recipientBalance/netAmount}"
+                                state="{path: '/recipientBalance/isBalanced', formatter: '.formatter.balancedState'}"
                                 class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
                             <ToolbarSeparator/>
                             <ObjectStatus
-                                text="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedText'}"
-                                state="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedState'}"
-                                icon="{path: '/initiatorBalance/isBalanced', formatter: '.formatter.balancedIcon'}"
+                                text="{path: '/recipientBalance/isBalanced', formatter: '.formatter.balancedText'}"
+                                state="{path: '/recipientBalance/isBalanced', formatter: '.formatter.balancedState'}"
+                                icon="{path: '/recipientBalance/isBalanced', formatter: '.formatter.balancedIcon'}"
                                 inverted="true"/>
                             <ToolbarSpacer/>
                             <Text text="Dr and Cr amounts must sum to zero. Validate before submitting."/>
