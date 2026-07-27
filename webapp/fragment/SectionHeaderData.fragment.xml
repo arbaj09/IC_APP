@@ -2,11 +2,13 @@
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
     xmlns:f="sap.ui.layout.form"
+    xmlns:layout="sap.ui.layout"
     xmlns:uxap="sap.uxap">
 
     <uxap:ObjectPageSection id="sectionTxControl" title="Header Data" titleUppercase="false">
         <uxap:subSections>
 
+            <!-- SubSection 1: Type & Classification -->
             <uxap:ObjectPageSubSection title="Type &amp; Classification" titleUppercase="false">
                 <uxap:blocks>
                     <f:SimpleForm editable="true" layout="ResponsiveGridLayout"
@@ -15,32 +17,57 @@
                         <f:content>
                             <Label text="Transaction Type" required="true"/>
                             <RadioButtonGroup selectedIndex="{/headerData/transactionTypeIndex}"
-                                              select="onTransactionTypeChange" columns="3">
+                                              select="onTransactionTypeChange" columns="2"
+                                              enabled="{/appState/isEditMode}">
                                 <buttons>
-                                    <RadioButton text="AR - IC Receivable"/>
-                                    <RadioButton text="AP - IC Payable"/>
-                                    <RadioButton text="Accrual Journal"/>
+                                    <RadioButton text="IC Invoice"/>
+                                    <RadioButton text="IC Accrual Journal"/>
                                 </buttons>
                             </RadioButtonGroup>
+
+                           
+
                             <Label text="Document Type"/>
-                            <Input
+                            <!-- <Input
                                 value="{/headerData/documentTypeCode}"
                                 showValueHelp="true"
                                 valueHelpRequest="onDocTypeValueHelp"
                                 placeholder="Select document type"
-                                width="220px"/>
+                                width="220px"/> -->
+
+                                <Input
+                                id="inpDocType"
+                                value="{/headerData/documentTypeCode}"
+                                description="{/headerData/documentType}"
+                                editable="false"
+                                showValueHelp="false"
+                                width="300px"/>
                         </f:content>
+                         <!-- Optimized UX Explanatory Note -->
+                            <MessageStrip
+                             
+                                visible="{= ${/headerData/transactionTypeIndex} === 0 }"
+                                text="Posting Logic: Initiator = AR Invoice / Recipient = AP Invoice"
+                                type="Information"
+                                showIcon="true"
+                                class="sapUiSmallMarginTop">
+                                <layoutData>
+                                    <layout:GridData span="XL12 L12 M12 S12"/>
+                                </layoutData>
+                            </MessageStrip>
                     </f:SimpleForm>
                 </uxap:blocks>
             </uxap:ObjectPageSubSection>
 
+            <!-- SubSection 2: Tax Invoice -->
             <uxap:ObjectPageSubSection title="Tax Invoice" titleUppercase="false"
-                                       visible="{= ${/headerData/transactionType} === 'AR'}">
+                                       visible="{= ${/headerData/transactionType} === 'INV' || ${/headerData/transactionTypeIndex} === 0}">
                 <uxap:blocks>
                     <VBox>
-                        <CheckBox text="Generate Tax Invoice for this AR transaction"
+                        <CheckBox text="Generate Tax Invoice for this IC Invoice transaction"
                                   selected="{/headerData/taxInvoiceRequired}"
-                                  select="onTaxInvoiceCheck"/>
+                                  select="onTaxInvoiceCheck"
+                                  enabled="{/appState/isEditMode}"/>
                         <Panel visible="{/headerData/taxInvoiceRequired}"
                                headerText="Tax Invoice Details"
                                backgroundDesign="Solid"
@@ -53,7 +80,8 @@
                                         <Label text="Invoice Date" required="true"/>
                                         <DatePicker value="{/headerData/taxInvoiceDate}"
                                                     displayFormat="dd.MM.yyyy" valueFormat="dd.MM.yyyy"
-                                                    placeholder="dd.MM.yyyy" width="180px"/>
+                                                    placeholder="dd.MM.yyyy" width="180px"
+                                                    editable="{/appState/isEditMode}"/>
                                         <Label text="Invoice Number"/>
                                         <Input value="{/headerData/taxInvoiceNumber}"
                                                placeholder="Assigned on submission"
@@ -62,9 +90,11 @@
                                         <Input value="{/headerData/taxInvoiceDescription}"
                                                maxLength="100"
                                                placeholder="e.g. Management fee recharge — Q1 2026"
-                                               width="100%"/>
+                                               width="100%"
+                                               editable="{/appState/isEditMode}"/>
                                         <Label text="VAT Treatment"/>
-                                        <Select selectedKey="{/headerData/taxVATTreatment}">
+                                        <Select selectedKey="{/headerData/taxVATTreatment}"
+                                                enabled="{/appState/isEditMode}">
                                             <core:Item key="Exempt"    text="Exempt — no VAT on invoice"/>
                                             <core:Item key="VAT"       text="VAT applicable — rate from tax code"/>
                                             <core:Item key="ZeroRated" text="Zero-rated"/>
@@ -78,6 +108,20 @@
                             </content>
                         </Panel>
                     </VBox>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+
+            <!-- SubSection 3: Initiator & Recipient -->
+            <uxap:ObjectPageSubSection title="Initiator &amp; Recipient" titleUppercase="false">
+                <uxap:blocks>
+                    <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionPartyDetails" type="XML"/>
+                </uxap:blocks>
+            </uxap:ObjectPageSubSection>
+
+            <!-- SubSection 4: Document Details -->
+            <uxap:ObjectPageSubSection title="Document Details" titleUppercase="false">
+                <uxap:blocks>
+                    <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionDocDetails" type="XML"/>
                 </uxap:blocks>
             </uxap:ObjectPageSubSection>
 

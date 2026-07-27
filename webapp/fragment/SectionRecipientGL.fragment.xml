@@ -15,7 +15,8 @@
                                 <Label text="Tax / VAT Code"/>
                                 <VBox>
                                     <Select selectedKey="{/headerData/recipientTaxCode}"
-                                            change="onRecipientTaxCodeChange" width="220px">
+                                            change="onRecipientTaxCodeChange" width="220px"
+                                            enabled="{/appState/isEditMode}">
                                         <core:Item key=""   text="(blank) — not applicable"/>
                                         <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
                                         <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
@@ -50,7 +51,9 @@
 
     <uxap:ObjectPageSection id="sectionRecipientGL" title="GL Coding — Recipient" titleUppercase="false">
         <uxap:subSections>
-            <uxap:ObjectPageSubSection title="GL Coding — Recipient" titleUppercase="false">
+            <uxap:ObjectPageSubSection 
+             visible="{= ${/headerData/transactionType} === 'AR' }"
+            title="GL Coding — Recipient" titleUppercase="false">
                 <uxap:blocks>
                     <VBox>
                         <f:SimpleForm editable="true" 
@@ -70,7 +73,8 @@
                                 <Label text="Tax / VAT Code" textAlign="Left"/>
                                 <VBox renderType="Bare">
                                     <Select selectedKey="{/headerData/recipientTaxCode}"
-                                            change="onRecipientTaxCodeChange" width="220px">
+                                            change="onRecipientTaxCodeChange" width="220px"
+                                            enabled="{/appState/isEditMode}">
                                         <core:Item key=""    text="(blank) — not applicable"/>
                                         <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
                                         <core:Item key="S0" text="S0 — Zero Rated (0%)"/>

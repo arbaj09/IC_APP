@@ -2,92 +2,115 @@
     xmlns="sap.m"
     xmlns:core="sap.ui.core"
     xmlns:l="sap.ui.layout"
-    xmlns:f="sap.ui.layout.form"
-    xmlns:uxap="sap.uxap">
+    xmlns:f="sap.ui.layout.form">
 
-    <uxap:ObjectPageSection id="sectionPartyDetails" title="Party Details" titleUppercase="false">
-        <uxap:subSections>
-            <uxap:ObjectPageSubSection title="Initiator &amp; Recipient" titleUppercase="false">
-                <uxap:blocks>
-                    <VBox width="100%">
-                        <l:Grid defaultSpan="L6 M6 S12" hSpacing="1">
-                            <l:content>
+    <VBox id="vboxPartyDetailsContainer" width="100%">
+        <l:Grid id="gridPartyDetails" defaultSpan="L6 M6 S12" hSpacing="1">
+            <l:content>
 
-                                <VBox>
-                                    <Title text="Initiator" level="H5" class="sapUiSmallMarginBottom"/>
-                                    <f:SimpleForm editable="true" layout="ResponsiveGridLayout"
-                                                  labelSpanL="5" labelSpanM="5"
-                                                  columnsL="1" columnsM="1">
-                                        <f:content>
-                                            <Label text="Company Code " required="true"/>
-                                            <HBox>
-                                                <Input id="iniCCInput"
-                                                       value="{/headerData/initiatorCC}"
-                                                       change="onInitiatorCCChange"
-                                                       showValueHelp="true"
-                                                       valueHelpRequest="onInitiatorCCValueHelp"
-                                                       maxLength="4" width="120px"
-                                                       placeholder="e.g. M111"/>
-                                                <ObjectStatus text="{/headerData/initiatorCCName}"
-                                                              state="None"
-                                                              class="sapUiSmallMarginBegin"/>
-                                            </HBox>
-                                            <Label text="Business Partner"/>
-                                          <Input
-    value="{/headerData/initiatorBP}"
-    editable="false"
-    placeholder="— derived from CC selection"
-    width="200px"/>
-                                            <Label text="Country"/>
-                                            <Text text="{/headerData/initiatorCountry}"
-                                                  renderWhitespace="false"/>
-                                        </f:content>
-                                    </f:SimpleForm>
-                                </VBox>
+                <!-- Initiator Section -->
+                <VBox id="vboxInitiator">
+                    <Title id="titleInitiator" text="Initiator" level="H5" class="sapUiSmallMarginBottom"/>
+                    <f:SimpleForm 
+                        id="formInitiator"
+                        editable="true" 
+                        layout="ResponsiveGridLayout"
+                        labelSpanL="5" labelSpanM="5"
+                        columnsL="1" columnsM="1">
+                        <f:content>
+                            <Label text="Company Code" required="true"/>
+                            <HBox id="hboxInitiatorCC">
+                                <Input
+                                    id="iniCCInput"
+                                    value="{/headerData/initiatorCC}"
+                                    change="onInitiatorCCChange"
+                                    editable="{/appState/isEditMode}"
+                                    showValueHelp="{/appState/isEditMode}"
+                                    valueHelpRequest="onInitiatorCCValueHelp"
+                                    maxLength="4"
+                                    width="120px"
+                                    placeholder="e.g. M111"/>
+                                <ObjectStatus 
+                                    id="stInitiatorCCName"
+                                    text="{/headerData/initiatorCCName}"
+                                    state="None"
+                                    class="sapUiSmallMarginBegin"/>
+                            </HBox>
+                            
+                            <Label text="Business Partner"/>
+                            <Input
+                                id="inpInitiatorBP"
+                                value="{/headerData/initiatorBP}"
+                                editable="false"
+                                placeholder="— derived from CC selection"
+                                width="200px"/>
+                                
+                            <Label text="Country"/>
+                            <Text 
+                                id="txtInitiatorCountry"
+                                text="{/headerData/initiatorCountry}"
+                                renderWhitespace="false"/>
+                        </f:content>
+                    </f:SimpleForm>
+                </VBox>
 
-                                <VBox>
-                                    <Title text="Recipient" level="H5" class="sapUiSmallMarginBottom"/>
-                                    <f:SimpleForm editable="true" layout="ResponsiveGridLayout"
-                                                  labelSpanL="5" labelSpanM="5"
-                                                  columnsL="1" columnsM="1">
-                                        <f:content>
-                                            <Label text="Company Code" required="true"/>
-                                            <HBox>
-                                                <Input value="{/headerData/recipientCC}"
-                                                       change="onRecipientCCChange"
-                                                       showValueHelp="true"
-                                                       valueHelpRequest="onRecipientCCValueHelp"
-                                                       maxLength="4" width="120px"
-                                                       placeholder="e.g. R111"/>
-                                                <ObjectStatus text="{/headerData/recipientCCName}"
-                                                              state="None"
-                                                              class="sapUiSmallMarginBegin"/>
-                                            </HBox>
-                                            <Label text="Business Partner" required="true"/>
-                                            <Input value="{/headerData/recipientBP}"
-                                                   placeholder="— derived from CC selection"
-                                                   editable="false"
-                                                   width="200px"/>
-                                            <Label text="Country"/>
-                                            <Text text="{/headerData/recipientCountry}"
-                                                  renderWhitespace="false"/>
-                                        </f:content>
-                                    </f:SimpleForm>
-                                </VBox>
+                <!-- Recipient Section -->
+                <VBox id="vboxRecipient">
+                    <Title id="titleRecipient" text="Recipient" level="H5" class="sapUiSmallMarginBottom"/>
+                    <f:SimpleForm 
+                        id="formRecipient"
+                        editable="true" 
+                        layout="ResponsiveGridLayout"
+                        labelSpanL="5" labelSpanM="5"
+                        columnsL="1" columnsM="1">
+                        <f:content>
+                            <Label text="Company Code" required="true"/>
+                            <HBox id="hboxRecipientCC">
+                                <Input
+                                    id="recCCInput"
+                                    value="{/headerData/recipientCC}"
+                                    change="onRecipientCCChange"
+                                    editable="{/appState/isEditMode}"
+                                    showValueHelp="{/appState/isEditMode}"
+                                    valueHelpRequest="onRecipientCCValueHelp"
+                                    maxLength="4"
+                                    width="120px"
+                                    placeholder="e.g. R111"/>
+                                <ObjectStatus 
+                                    id="stRecipientCCName"
+                                    text="{/headerData/recipientCCName}"
+                                    state="None"
+                                    class="sapUiSmallMarginBegin"/>
+                            </HBox>
 
-                            </l:content>
-                        </l:Grid>
+                            <Label text="Business Partner" required="true"/>
+                            <Input 
+                                id="inpRecipientBP"
+                                value="{/headerData/recipientBP}"
+                                placeholder="— derived from CC selection"
+                                editable="false"
+                                width="200px"/>
 
-                        <MessageStrip
-                            visible="{/headerData/partyValidationVisible}"
-                            text="{/headerData/partyValidationText}"
-                            type="{/headerData/partyValidationState}"
-                            showIcon="true" showCloseButton="false"
-                            class="sapUiSmallMarginTop"/>
-                    </VBox>
-                </uxap:blocks>
-            </uxap:ObjectPageSubSection>
-        </uxap:subSections>
-    </uxap:ObjectPageSection>
+                            <Label text="Country"/>
+                            <Text 
+                                id="txtRecipientCountry"
+                                text="{/headerData/recipientCountry}"
+                                renderWhitespace="false"/>
+                        </f:content>
+                    </f:SimpleForm>
+                </VBox>
+
+            </l:content>
+        </l:Grid>
+
+        <MessageStrip
+            id="msgStripPartyValidation"
+            visible="{/headerData/partyValidationVisible}"
+            text="{/headerData/partyValidationText}"
+            type="{/headerData/partyValidationState}"
+            showIcon="true" 
+            showCloseButton="false"
+            class="sapUiSmallMarginTop"/>
+    </VBox>
 
 </core:FragmentDefinition>

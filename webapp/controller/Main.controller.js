@@ -38,8 +38,6 @@ sap.ui.define([
             var that = this;
             MasterDataService.getCompanyCodes().then(function (aCodes) {
                 oModel.setProperty("/referenceData/companyCodes", aCodes);
-                // Load user default CC only after company codes are ready so
-                // _resolveCC() can look up the name without returning null.
                 that._loadUserDefaultCC();
             });
             MasterDataService.getTaxCodes().then(function (aTaxCodes) {
@@ -62,7 +60,7 @@ sap.ui.define([
                     transactionType: Constants.TRANSACTION_TYPE.AR,
                     transactionTypeIndex: 0,
                     documentType: this.getI18nText("documentType." + Constants.DOCUMENT_TYPE.IC),
-                    documentTypeCode: "",
+                    documentTypeCode: "IC", // Set initial default document type code
                     taxInvoiceRequired: false,
                     taxInvoiceNumber: "",
                     taxInvoiceDate: "",
@@ -70,10 +68,11 @@ sap.ui.define([
                     taxVATTreatment: Constants.DEFAULT.VAT_TREATMENT,
 
                     initiatorCC: Constants.DEFAULT.INITIATOR_CC,
-                    initiatorCCName: "Madiba Holdings (Pty) Ltd",
+                    initiatorCCName: "Madiba Holdings (Pty) Ltd",  // resolved from _aCodes on load
                     initiatorBP: "",
                     recipientBP: "",
                     recipientBPName: "",
+                    reconciliationAccount: "",
                     recipientCC: "",
                     recipientCCName: "",
                     partyValidationVisible: false,
@@ -90,12 +89,15 @@ sap.ui.define([
                     reference: "",
                     headerText: "",
                     currency: Constants.DEFAULT.CURRENCY,
-                    icTransactionType: Constants.DEFAULT.IC_TX_TYPE,
-                    totalIntercoAmount: "",
+
+                    // New Intercompany Amount Fields
+                    netAmount: "0.00",
+                    taxAmount: "0.00",
+                    totalIntercoAmount: "0.00",
 
                     initiatorTaxCode: "",
                     initiatorTaxAmount: "0.00",
-                    initiatorCountry: "ZA (T001-LAND1 for " + Constants.DEFAULT.INITIATOR_CC + ")",
+                    initiatorCountry: "ZA (T001-LAND1 for 1110)",
                     recipientTaxCode: "",
                     recipientTaxAmount: "0.00",
                     recipientCountry: "— (derived from Recipient CC)",
@@ -154,7 +156,8 @@ sap.ui.define([
                 },
 
                 appState: {
-                    isBusy: false
+                    isBusy: false,
+                    isEditMode: false
                 },
 
                 referenceData: {
@@ -177,23 +180,28 @@ sap.ui.define([
         onTransactionTypeChange: function (oEvent) {
             var oModel  = this.getView().getModel();
             var iIdx    = oEvent.getParameter("selectedIndex");
+          
+            // index 0 -> AR (IC Invoice), index 1 -> ACCRUAL (IC Accrual Journal)
             var sTxType = [
                 Constants.TRANSACTION_TYPE.AR,
-                Constants.TRANSACTION_TYPE.AP,
                 Constants.TRANSACTION_TYPE.ACCRUAL
             ][iIdx];
+
             oModel.setProperty("/headerData/transactionType", sTxType);
             oModel.setProperty("/headerData/transactionTypeIndex", iIdx);
-            this._deriveDocumentType(sTxType);
+
+            this._deriveDocumentType(iIdx);
             this._syncBPClearingLine();
         },
 
-        _deriveDocumentType: function (sTxType) {
-            var sCode = sTxType === Constants.TRANSACTION_TYPE.ACCRUAL
-                ? Constants.DOCUMENT_TYPE.IA
-                : Constants.DOCUMENT_TYPE.IC;
-            this.getView().getModel().setProperty("/headerData/documentType",
-                this.getI18nText("documentType." + sCode));
+        _deriveDocumentType: function (iIdx) {
+            var oModel = this.getView().getModel();
+            
+            // Set document code automatically: IC for Invoice, IA for Accrual
+            var sCode = (iIdx === 0) ? Constants.DOCUMENT_TYPE.IC : Constants.DOCUMENT_TYPE.IA;
+            
+            oModel.setProperty("/headerData/documentTypeCode", sCode);
+            oModel.setProperty("/headerData/documentType", this.getI18nText("documentType." + sCode));
         },
 
         onTaxInvoiceCheck: function () {
@@ -207,20 +215,13 @@ sap.ui.define([
         _loadUserDefaultCC: function () {
             var oModel = this.getView().getModel();
 
-            // ── Deployed on SAP Fiori Launchpad (BTP / S/4HANA Public Cloud) ──
-            // sap.ushell is injected by the Fiori Launchpad shell at runtime.
-            // It is NOT available when running locally via http-server.
             if (!sap.ushell || !sap.ushell.Container) {
                 return;
             }
 
-            // Step 1: read the logged-in user's SAP user ID from the shell
             var sUserId = sap.ushell.Container.getService("UserInfo").getId();
             if (!sUserId) { return; }
 
-            // Step 2: call the standard S/4HANA user-parameter OData V2 service.
-            // Parameter ID "BUK" stores the user's default company code (set in
-            // SU3 / My Settings → Default Values in S/4HANA Public Cloud).
             jQuery.ajax({
                 url: "/sap/opu/odata/sap/CA_USRAPIV2_SRV/PersonalSettingCollection" +
                      "?$filter=Id eq 'BUK'&$format=json",
@@ -238,7 +239,6 @@ sap.ui.define([
                     oModel.setProperty("/headerData/initiatorCountry",
                         oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
                 }.bind(this)
-                // No error handler — silent fail, user enters CC manually
             });
         },
 
@@ -255,7 +255,6 @@ sap.ui.define([
             oModel.setProperty("/headerData/initiatorCountry",
                 oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
 
-            // Clear derived BPs — they depend on the initiator CC and must be re-derived
             oModel.setProperty("/headerData/initiatorBP", "");
             oModel.setProperty("/headerData/recipientBP", "");
             oModel.setProperty("/headerData/recipientBPName", "");
@@ -265,7 +264,6 @@ sap.ui.define([
             this._syncBPClearingLine();
             this._validateParties();
 
-            // Auto-derive BPs immediately if recipient CC is already set
             var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
             if (sCC && sRecCC) {
                 this._autoDeriveBPs(sRecCC, sCC);
@@ -297,6 +295,9 @@ sap.ui.define([
             var sTxType = oModel.getProperty("/headerData/transactionType");
             var that = this;
 
+            oModel.setProperty("/appState/isBusy", true);
+
+            // Stage 1: Derive forward BP (Customer) and reverse BP in parallel.
             Promise.all([
                 MasterDataService.getBusinessPartners(sIniCC, sRecCC, sTxType),
                 MasterDataService.getReverseBP(sRecCC, sIniCC)
@@ -305,18 +306,52 @@ sap.ui.define([
                 var oReverse = aResults[1];
 
                 if (!aForward.length) {
+                    oModel.setProperty("/appState/isBusy", false);
                     MessageToast.show("No intercompany relationship found between " + sIniCC + " and " + sRecCC + ".");
                     return;
                 }
 
                 var oFwd = aForward[0];
-                oModel.setProperty("/headerData/recipientBP", oFwd.bp);
-                oModel.setProperty("/headerData/recipientBPName", oFwd.bpName);
-                oModel.setProperty("/headerData/initiatorBP", oReverse ? oReverse.konts : "—");
+                var sCustomer = oFwd.bp;
+                var sKontsFallback = oFwd.konts || sCustomer;
 
-                that._validateParties();
-                that._syncBPClearingLine();
-                that._propagateTradingPartner();
+                // Write BP fields immediately so party validation can run.
+                oModel.setProperty("/headerData/recipientBP", sCustomer);
+                oModel.setProperty("/headerData/recipientBPName", oFwd.bpName);
+                oModel.setProperty("/headerData/initiatorBP", oReverse ? oReverse.bp : "—");
+
+                // Stage 2: Fetch ReconciliationAccount from I_CustomerCompany.
+                // CompanyCode = initiator CC (the posting entity).
+                // Customer    = the recipient entity's SAP Customer number.
+                var fnFinalize = function () {
+                    oModel.setProperty("/appState/isBusy", false);
+                    that._validateParties();
+                    that._syncBPClearingLine();
+                    that._propagateTradingPartner();
+                };
+
+                MasterDataService.getReconciliationAccount(sIniCC, sCustomer)
+                    .then(function (oResult) {
+                        // Stage 3 (success): write the live reconciliation account.
+                        var sReconAcct = oResult ? oResult.reconciliationAccount : sKontsFallback;
+                        oModel.setProperty("/headerData/reconciliationAccount", sReconAcct);
+                        fnFinalize();
+                    }, function (oError) {
+                        // Stage 3 (fallback): use T001U konts (not the customer number) so
+                        // GL Account and Business Partner remain distinct fields.
+                        jQuery.sap.log.error(
+                            "[ZFI_INTERCO] getReconciliationAccount failed for CC=" + sIniCC +
+                            ", Customer=" + sCustomer + ". Falling back to T001U konts. " +
+                            (oError && oError.message ? oError.message : "")
+                        );
+                        oModel.setProperty("/headerData/reconciliationAccount", sKontsFallback);
+                        MessageToast.show("GL account derivation failed — using T001U clearing account as fallback.");
+                        fnFinalize();
+                    });
+
+            }, function () {
+                oModel.setProperty("/appState/isBusy", false);
+                MessageToast.show("Failed to derive intercompany business partners.");
             });
         },
 
@@ -405,7 +440,6 @@ sap.ui.define([
             this._pDocTypeDialog.then(function (oDialog) {
                 oDialog.open();
 
-                // Load only if not yet fetched
                 if ((oModel.getProperty("/referenceData/documentTypes") || []).length > 0) {
                     return;
                 }
@@ -466,7 +500,7 @@ sap.ui.define([
         },
 
         // ─────────────────────────────────────────────────────────────────────
-        // Document Details
+        // Document Details & Amount Calculations
         // ─────────────────────────────────────────────────────────────────────
 
         onDocumentDateChange: function (oEvent) {
@@ -479,7 +513,6 @@ sap.ui.define([
             var oModel = this.getView().getModel();
             oModel.setProperty("/headerData/postingDate", sValue);
 
-            // Derive fiscal period from posting date
             if (sValue) {
                 var oParsed = Helper.parseDate(sValue);
                 if (oParsed) {
@@ -504,7 +537,17 @@ sap.ui.define([
                 bClosed ? "sap-icon://decline" : "sap-icon://accept");
         },
 
-        onTotalAmountChange: function () {
+        onIntercoAmountChange: function () {
+            var oModel = this.getView().getModel();
+
+            var fNet = parseFloat(oModel.getProperty("/headerData/netAmount")) || 0;
+            var fTax = parseFloat(oModel.getProperty("/headerData/taxAmount")) || 0;
+
+            // Total Intercompany Amount = Net + Tax
+            var fTotal = fNet + fTax;
+
+            oModel.setProperty("/headerData/totalIntercoAmount", fTotal.toFixed(2));
+
             this._recalculateTax();
             this._syncBPClearingLine();
             this._recalculateBalance();
@@ -542,7 +585,6 @@ sap.ui.define([
             oModel.setProperty("/headerData/initiatorTaxAmount", fIniTax.toFixed(2));
             oModel.setProperty("/headerData/recipientTaxAmount", fRecTax.toFixed(2));
 
-            // Build tax calc table rows
             var aRows = [];
             var sCcy = oModel.getProperty("/headerData/currency") || Constants.DEFAULT.CURRENCY;
             var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
@@ -620,7 +662,7 @@ sap.ui.define([
             _rowCounter++;
             var oModel = this.getView().getModel();
             var aLines = oModel.getProperty("/initiatorLines") || [];
-            var sRecCC = oModel.getProperty("/headerData/recipientCC") || "";
+            var sIniCC = oModel.getProperty("/headerData/initiatorCC") || "";
             var sIniTaxCode = oModel.getProperty("/headerData/initiatorTaxCode") || "";
 
             aLines.push({
@@ -631,7 +673,7 @@ sap.ui.define([
                 businessPartner: "",
                 amountDC: "",
                 taxCode: sIniTaxCode,
-                tradingPartner: sRecCC,
+                tradingPartner: sIniCC,
                 partnerPrCtr: "",
                 wbsElement: "",
                 costCenter: "",
@@ -663,7 +705,6 @@ sap.ui.define([
                 return;
             }
             aLines.splice(iIndex, 1);
-            // Renumber
             aLines.forEach(function (oLine, i) { oLine.rowNum = i + 1; });
             oModel.setProperty("/initiatorLines", aLines);
             this._recalculateBalance();
@@ -703,19 +744,22 @@ sap.ui.define([
             var aLines = oModel.getProperty("/initiatorLines");
             if (!aLines || !aLines.length) return;
 
-            var sTxType = oModel.getProperty("/headerData/transactionType");
-            var sRecipientBP = oModel.getProperty("/headerData/recipientBP") || "—";
-            var sRecipientCC = oModel.getProperty("/headerData/recipientCC") || "—";
-            var fGross = parseFloat(oModel.getProperty("/headerData/totalIntercoAmount")) || 0;
-            var fTaxAmt = parseFloat(oModel.getProperty("/headerData/initiatorTaxAmount")) || 0;
-            var sIniTaxCode = oModel.getProperty("/headerData/initiatorTaxCode") || "";
+            var sTxType        = oModel.getProperty("/headerData/transactionType");
+            var sInitiatorBP   = oModel.getProperty("/headerData/initiatorBP") || "—";
+            var sRecipientBP   = oModel.getProperty("/headerData/recipientBP") || "—";
+            var sReconAccount  = oModel.getProperty("/headerData/reconciliationAccount") || sRecipientBP;
+            var fGross         = parseFloat(oModel.getProperty("/headerData/totalIntercoAmount")) || 0;
+            var fTaxAmt        = parseFloat(oModel.getProperty("/headerData/initiatorTaxAmount")) || 0;
+            var sIniTaxCode    = oModel.getProperty("/headerData/initiatorTaxCode") || "";
 
-            aLines[0].glAccount = sRecipientBP;
-            aLines[0].businessPartner = sRecipientBP;
-            aLines[0].tradingPartner = sRecipientCC;
-            aLines[0].amountDC = (fGross - fTaxAmt).toFixed(2);
-            aLines[0].taxCode = sIniTaxCode;
-            aLines[0].debitCredit = sTxType === Constants.TRANSACTION_TYPE.AP
+            // GL Account = ReconciliationAccount from I_CustomerCompany (KNBK-AKONT).
+            // Business Partner = Initiator BP (how the initiator entity appears in SAP as a customer).
+            aLines[0].glAccount       = sReconAccount;
+            aLines[0].businessPartner = sInitiatorBP;
+            aLines[0].tradingPartner  = oModel.getProperty("/headerData/initiatorCC") || "—";
+            aLines[0].amountDC        = (fGross - fTaxAmt).toFixed(2);
+            aLines[0].taxCode         = sIniTaxCode;
+            aLines[0].debitCredit     = sTxType === Constants.TRANSACTION_TYPE.AP
                 ? Constants.DC_INDICATOR.CREDIT
                 : Constants.DC_INDICATOR.DEBIT;
 
@@ -726,8 +770,10 @@ sap.ui.define([
         _propagateTradingPartner: function () {
             var oModel = this.getView().getModel();
             var aLines = oModel.getProperty("/initiatorLines") || [];
-            var sRecCC = oModel.getProperty("/headerData/recipientCC") || "";
-            aLines.forEach(function (oLine) { oLine.tradingPartner = sRecCC; });
+            var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim();
+            aLines.forEach(function (oLine) {
+                oLine.tradingPartner = sIniCC || "—";
+            });
             oModel.setProperty("/initiatorLines", aLines);
         },
 
@@ -746,167 +792,161 @@ sap.ui.define([
                 var aLines = oModel.getProperty("/initiatorLines") || [];
                 var aUserLines = aLines.filter(function (l) { return !l.isSystemLine; });
 
-                if (!aUserLines.length) {
-                    addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.ZFI, "E001", "At least one GL offset line is required before submission.");
+                // Header validation
+                var oHeader = oModel.getProperty("/headerData");
+                if (!oHeader.initiatorCC) addMsg("E", "ZFI", "001", "Initiator Company Code is required.");
+                if (!oHeader.recipientCC) addMsg("E", "ZFI", "002", "Recipient Company Code is required.");
+                if (!oHeader.postingDate) addMsg("E", "ZFI", "003", "Posting Date is required.");
+
+                // Line items check
+                if (aUserLines.length === 0) {
+                    addMsg("E", "ZFI", "004", "At least one G/L line item must be entered.");
                 }
 
-                var oBalance = oModel.getProperty("/initiatorBalance");
-                if (Math.abs(parseFloat(oBalance.netAmount)) >= Constants.BALANCE_TOLERANCE) {
-                    addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.F5, "702",
-                        "Document not in balance — net: " + oBalance.netAmount +
-                        ". Debits and Credits must sum to zero.");
-                }
-
-                var oSysLine = aLines[0];
-                if (!oSysLine || !oSysLine.glAccount || oSysLine.glAccount === "—") {
-                    addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.F5, "003", "BP clearing line GL account not determined. Check party setup and T001U.");
-                }
-
-                if (!oSysLine || parseFloat(oSysLine.amountDC) === 0) {
-                    addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.F5, "704", "BP clearing line amount is zero. Enter Total Interco Amount on Header tab.");
-                }
-
-                aUserLines.forEach(function (oLine, idx) {
-                    var iLineNo = idx + 2;
-                    if (!oLine.glAccount || !oLine.glAccount.trim()) {
-                        addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.F5, "001", "Line " + iLineNo + ": GL Account is required.");
+                aUserLines.forEach(function (line, idx) {
+                    if (!line.glAccount) {
+                        addMsg("E", "ZFI", "005", "Line " + (idx + 2) + ": G/L Account is missing.");
                     }
-                    if (!parseFloat(String(oLine.amountDC).replace(/[^0-9.\-]/g, ""))) {
-                        addMsg(Constants.MSG_TYPE.WARNING, Constants.MSG_CLASS.F5, "067", "Line " + iLineNo + ": Amount is zero — confirm this is intentional.");
-                    }
-                    if (!oLine.itemText || !oLine.itemText.trim()) {
-                        addMsg(Constants.MSG_TYPE.WARNING, Constants.MSG_CLASS.ZFI, "W002", "Line " + iLineNo + ": Item Text is missing (mandatory per posting guidelines).");
+                    if (!line.amountDC || parseFloat(line.amountDC) === 0) {
+                        addMsg("E", "ZFI", "006", "Line " + (idx + 2) + ": Amount must be greater than zero.");
                     }
                 });
 
-                var sPeriodState = oModel.getProperty("/headerData/periodStatusState");
-                if (sPeriodState === "Error") {
-                    addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.F5, "201", "Posting period is closed. Period must be open to post.");
-                }
-
-                var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim();
-                if (!sIniCC) {
-                    addMsg(Constants.MSG_TYPE.ERROR, Constants.MSG_CLASS.F5, "052", "Initiator Company Code is blank. Enter it on the Header tab.");
-                }
-
-                var nErrors = aMessages.filter(function (m) { return m.type === Constants.MSG_TYPE.ERROR; }).length;
-                var nWarnings = aMessages.filter(function (m) { return m.type === Constants.MSG_TYPE.WARNING; }).length;
-
-                if (!nErrors && !nWarnings) {
-                    addMsg(Constants.MSG_TYPE.SUCCESS, Constants.MSG_CLASS.F5, "000", "Simulation successful — no errors or warnings. Document may be posted.");
-                } else if (!nErrors) {
-                    addMsg(Constants.MSG_TYPE.SUCCESS, Constants.MSG_CLASS.F5, "000", "Simulation passed with " + nWarnings + " warning(s) — review before submitting.");
+                // Balance check
+                var oBalance = oModel.getProperty("/initiatorBalance");
+                if (!oBalance.isBalanced) {
+                    addMsg("E", "ZFI", "007", "Document is not in balance. Net difference: " + oBalance.netAmount);
                 }
 
                 oModel.setProperty("/appState/isBusy", false);
 
-                // Build summary text
-                var sSummary;
-                var sState;
-                if (nErrors > 0) {
-                    sSummary = "Validation failed — " + nErrors + " error(s). Resolve all errors before submitting.";
-                    sState = "Error";
-                } else if (nWarnings > 0) {
-                    sSummary = "Validated with " + nWarnings + " warning(s). Review warnings, then submit.";
-                    sState = "Warning";
+                var bHasError = aMessages.some(function (m) { return m.type === "E"; });
+                if (bHasError) {
+                    oModel.setProperty("/initiatorValidation", {
+                        visible: true,
+                        state: "Error",
+                        text: "Validation failed with " + aMessages.length + " error(s)."
+                    });
+                    MessageBox.error("Validation failed. Please review the highlighted errors.");
                 } else {
-                    sSummary = "Validation passed — SAP simulation returned no errors. Transaction may be submitted.";
-                    sState = "Success";
+                    oModel.setProperty("/initiatorValidation", {
+                        visible: true,
+                        state: "Success",
+                        text: "All checks passed successfully. Document is ready to post or submit."
+                    });
+                    MessageToast.show("Validation successful!");
                 }
-                oModel.setProperty("/initiatorValidation/visible", true);
-                oModel.setProperty("/initiatorValidation/state", sState);
-                oModel.setProperty("/initiatorValidation/text", sSummary);
-
-                // Show detail in MessageBox
-                var sDetail = aMessages.map(function (m) {
-                    var sPrefix = m.type === Constants.MSG_TYPE.ERROR ? "✗ Error" : m.type === Constants.MSG_TYPE.WARNING ? "! Warning" : "✓ Info";
-                    return sPrefix + " [" + m.msgClass + " " + m.msgNum + "]: " + m.text;
-                }).join("\n");
-
-                if (nErrors > 0) {
-                    MessageBox.error(sDetail, { title: "SAP JE API — Validate (Simulate)" });
-                } else if (nWarnings > 0) {
-                    MessageBox.warning(sDetail, { title: "SAP JE API — Validate (Simulate)" });
-                } else {
-                    MessageBox.success(sDetail, { title: "SAP JE API — Validate (Simulate)" });
-                }
-
-            }, 1200);
+            }, 500);
         },
 
         // ─────────────────────────────────────────────────────────────────────
-        // Action Bar
+        // Action Handlers (Save, Submit, Reset)
         // ─────────────────────────────────────────────────────────────────────
+
+        onSaveDraft: function () {
+            var oModel = this.getView().getModel();
+            oModel.setProperty("/appState/isBusy", true);
+
+            setTimeout(function () {
+                oModel.setProperty("/appState/isBusy", false);
+                oModel.setProperty("/workflow/status", Constants.WORKFLOW_STATUS.DRAFT);
+                oModel.setProperty("/workflow/statusState", "Warning");
+                oModel.setProperty("/workflow/intercoRef", "IC-2026-" + Math.floor(1000 + Math.random() * 9000));
+                MessageToast.show("Draft saved successfully.");
+            }, 600);
+        },
+
+        onSubmitWorkflow: function () {
+            var oModel   = this.getView().getModel();
+            var oBalance = oModel.getProperty("/initiatorBalance");
+            console.log("Header:", oModel.getProperty("/headerData"));
+        console.log("Initiator Lines:", oModel.getProperty("/initiatorLines"));
+
+            if (!oBalance.isBalanced) {
+                MessageBox.error("Cannot submit: Document debits and credits must balance.");
+                return;
+            }
+
+            MessageBox.confirm("Submit this intercompany document for posting in SAP?", {
+                onClose: function (sAction) {
+                    if (sAction !== MessageBox.Action.OK) { return; }
+
+                    oModel.setProperty("/appState/isBusy", true);
+
+                    var oHeader = oModel.getProperty("/headerData");
+                    var aLines  = oModel.getProperty("/initiatorLines") || [];
+                    console.log("Header for Submit:", oHeader);
+console.log("Lines for Submit:", aLines);
+
+                    MasterDataService.submitIntercoDocument(oHeader, aLines)
+                        .then(function (oResult) {
+                            oModel.setProperty("/appState/isBusy", false);
+                            oModel.setProperty("/workflow/status", Constants.WORKFLOW_STATUS.SUBMITTED);
+                            oModel.setProperty("/workflow/statusState", "Success");
+                            oModel.setProperty("/workflow/intercoRef", oResult.accountingdocument_temp || "POSTED");
+                            MessageBox.success(
+                                "Intercompany document posted successfully in SAP.\n\n" +
+                                "Document reference: " + (oResult.accountingdocument_temp || "—")
+                            );
+                        })
+                        .catch(function (oError) {
+                            oModel.setProperty("/appState/isBusy", false);
+                            MessageBox.error(
+                                "Submission failed:\n\n" +
+                                (oError && oError.message ? oError.message : "An unexpected error occurred.")
+                            );
+                        });
+                }
+            });
+        },
+
+        onResetForm: function () {
+            var that = this;
+            MessageBox.warning("Are you sure you want to reset the entire form?", {
+                actions: [MessageBox.Action.YES, MessageBox.Action.NO],
+                onClose: function (sAction) {
+                    if (sAction === MessageBox.Action.YES) {
+                        that._initModel();
+                        that._loadReferenceData();
+                        MessageToast.show("Form has been reset.");
+                    }
+                }
+            });
+        },
+
+        onCreateNew: function () {
+            this.getView().getModel().setProperty("/appState/isEditMode", true);
+        },
+
+        onCancel: function () {
+            var that = this;
+            MessageBox.warning("Discard changes and return to display mode?", {
+                actions: [MessageBox.Action.YES, MessageBox.Action.NO],
+                onClose: function (sAction) {
+                    if (sAction === MessageBox.Action.YES) {
+                        that._initModel();
+                        that._loadReferenceData();
+                    }
+                }
+            });
+        },
 
         onDeleteDraft: function () {
             var that = this;
-            MessageBox.confirm("Delete this draft? All unsaved data will be lost.", {
-                title: "Delete Draft",
-                actions: [MessageBox.Action.DELETE, MessageBox.Action.CANCEL],
-                emphasizedAction: MessageBox.Action.DELETE,
+            MessageBox.warning("Delete this draft? This cannot be undone.", {
+                actions: [MessageBox.Action.YES, MessageBox.Action.NO],
                 onClose: function (sAction) {
-                    if (sAction === MessageBox.Action.DELETE) {
+                    if (sAction === MessageBox.Action.YES) {
                         that._initModel();
+                        that._loadReferenceData();
                         MessageToast.show("Draft deleted.");
                     }
                 }
             });
         },
 
-        onCancel: function () {
-            var that = this;
-            MessageBox.confirm("Cancel and discard all changes?", {
-                title: "Cancel",
-                onClose: function (sAction) {
-                    if (sAction === MessageBox.Action.OK) {
-                        that._initModel();
-                        MessageToast.show("Changes discarded.");
-                    }
-                }
-            });
-        },
-
-        onSaveDraft: function () {
-            var oModel = this.getView().getModel();
-            oModel.setProperty("/appState/isBusy", true);
-            setTimeout(function () {
-                oModel.setProperty("/appState/isBusy", false);
-                MessageToast.show("Draft saved successfully.");
-            }, 1500);
-        },
-
         onSubmitToRecipient: function () {
-            var oModel = this.getView().getModel();
-            var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim();
-            var sRecBP = (oModel.getProperty("/headerData/recipientBP") || "").trim();
-            var sRef = (oModel.getProperty("/headerData/reference") || "").trim();
-            var sHdrText = (oModel.getProperty("/headerData/headerText") || "").trim();
-            var fAmt = parseFloat(oModel.getProperty("/headerData/totalIntercoAmount")) || 0;
-            var oBalance = oModel.getProperty("/initiatorBalance");
-            var aLines = oModel.getProperty("/initiatorLines") || [];
-            var aUserLines = aLines.filter(function (l) { return !l.isSystemLine; });
-
-            if (!sIniCC) { MessageBox.error("Initiator Company Code is required."); return; }
-            if (!sRecBP) { MessageBox.error("Recipient Business Partner is required. Use F4 on Party Details."); return; }
-            if (!sRef) { MessageBox.error("Reference is required (Header tab)."); return; }
-            if (!sHdrText) { MessageBox.error("Header Text is required (Header tab)."); return; }
-            if (!fAmt) { MessageBox.error("Total Interco Amount must be greater than zero."); return; }
-            if (!aUserLines.length) { MessageBox.error("At least one GL offset line is required (GL Coding — Initiator tab)."); return; }
-            if (!oBalance.isBalanced) { MessageBox.error("GL coding is not balanced (Dr ≠ Cr). Correct before submitting."); return; }
-
-            oModel.setProperty("/appState/isBusy", true);
-            setTimeout(function () {
-                oModel.setProperty("/appState/isBusy", false);
-                oModel.setProperty("/workflow/status", Constants.WORKFLOW_STATUS.SUBMITTED);
-                oModel.setProperty("/workflow/statusState", "Success");
-                oModel.setProperty("/workflow/intercoRef", "IC-2026-00" + Math.floor(Math.random() * 900 + 100));
-                MessageBox.success(
-                    "Transaction submitted to Recipient successfully.\n" +
-                    "Interco Ref: " + oModel.getProperty("/workflow/intercoRef") +
-                    "\nA workflow notification has been sent to the Recipient.",
-                    { title: "Submitted" }
-                );
-            }, 2000);
+            this.onSubmitWorkflow();
         }
 
     });

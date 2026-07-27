@@ -29,6 +29,11 @@
         </uxap:snappedHeading>
 
         <uxap:actions>
+            <Button text="Create"
+                    icon="sap-icon://add"
+                    type="Emphasized"
+                    press="onCreateNew"
+                    visible="{= !${/appState/isEditMode}}"/>
             <ObjectStatus text="{/workflow/status}" state="{/workflow/statusState}" inverted="true"/>
             <ObjectStatus text="{/headerData/documentType}" state="Information"
                           class="sapUiSmallMarginBegin"/>

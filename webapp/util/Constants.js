@@ -50,7 +50,7 @@ sap.ui.define([], function () {
         // Used only in _initModel as seed values before user interaction or
         // FLP user-parameter lookup overrides them.
         DEFAULT: Object.freeze({
-            INITIATOR_CC:  "M111",
+            INITIATOR_CC:  "1110",
             CURRENCY:      "USD",
             IC_TX_TYPE:    "Gross",
             VAT_TREATMENT: "Exempt"

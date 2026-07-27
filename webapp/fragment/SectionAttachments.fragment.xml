@@ -11,6 +11,7 @@
                 <uxap:blocks>
                     <TextArea value="{/headerData/comments}" rows="4" growing="true" growingMaxLines="8"
                               placeholder="Enter comments or context for the Recipient regarding this transaction. These are visible in the workflow notification and on the review screen."
+                              editable="{/appState/isEditMode}"
                               width="100%"/>
                 </uxap:blocks>
             </uxap:ObjectPageSubSection>
@@ -37,7 +38,7 @@
                                         <Text text="{uploader}"/>
                                         <Text text="{uploadDate}"/>
                                         <Button icon="sap-icon://delete" type="Transparent"
-                                                enabled="{= !${isSystem}}"
+                                                enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystem}}"
                                                 press="onAttachmentDelete"
                                                 tooltip="Delete attachment"/>
                                     </cells>
@@ -49,6 +50,7 @@
                                 multiple="true" buttonText="Attach File" buttonOnly="false"
                                 sameFilenameAllowed="true" change="onAttachmentAdd"
                                 fileType="pdf,xlsx,docx,png,jpg,jpeg" maximumFileSize="10"
+                                enabled="{/appState/isEditMode}"
                                 style="Emphasized"/>
                             <Text text="Supported: PDF, XLSX, DOCX, PNG, JPG — max 10 MB. Attachments are linked to both posted FI documents via GOS on submission."
                                   wrapping="true" class="sapUiSmallMarginBegin"/>

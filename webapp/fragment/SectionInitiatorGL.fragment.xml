@@ -13,7 +13,10 @@
     <uxap:ObjectPageSection id="sectionInitiatorGL" title="GL Coding — Initiator" titleUppercase="false">
         <uxap:subSections>
 
-            <uxap:ObjectPageSubSection title="Tax Code" titleUppercase="false">
+            <uxap:ObjectPageSubSection
+             title="Tax Code"
+           visible="{= ${/headerData/transactionType} === 'AR' }"
+             titleUppercase="false">
                 <uxap:blocks>
                     <VBox>
                         <f:SimpleForm editable="true" 
@@ -80,7 +83,8 @@
 
                         <Toolbar class="sapUiSmallMarginBottom">
                             <Button text="Add Line" icon="sap-icon://add"
-                                    press="onAddInitiatorLine" type="Ghost"/>
+                                    press="onAddInitiatorLine" type="Ghost"
+                                    enabled="{/appState/isEditMode}"/>
                             <Button text="Validate (F7)" icon="sap-icon://sys-find-next"
                                     press="onInitiatorValidate" type="Emphasized"
                                     class="sapUiSmallMarginBegin"/>
@@ -128,7 +132,7 @@
                                     <t:label><Label text="D/C"/></t:label>
                                     <t:template>
                                         <Select selectedKey="{debitCredit}"
-                                                enabled="{= !${isSystemLine}}"
+                                                enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                 change="onGLLineChange" width="80px">
                                             <core:Item key="S" text="Dr"/>
                                             <core:Item key="H" text="Cr"/>
@@ -139,7 +143,7 @@
                                 <t:Column width="130px">
                                     <t:label><Label text="GL Account *"/></t:label>
                                     <t:template>
-                                        <Input value="{glAccount}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{glAccount}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="GL Acct" change="onGLLineChange" width="120px"/>
                                     </t:template>
                                 </t:Column>
@@ -154,7 +158,7 @@
                                 <t:Column width="130px" hAlign="End">
                                     <t:label><Label text="Amount (DC)"/></t:label>
                                     <t:template>
-                                        <Input value="{amountDC}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{amountDC}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                type="Number" textAlign="End" placeholder="0.00"
                                                change="onGLLineChange" width="120px"/>
                                     </t:template>
@@ -163,7 +167,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Tax Code"/></t:label>
                                     <t:template>
-                                        <Select selectedKey="{taxCode}" enabled="{= !${isSystemLine}}"
+                                        <Select selectedKey="{taxCode}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                 change="onGLLineChange" width="300px">
                                             <core:Item key=""   text="—"/>
                                             <core:Item key="A0" text="A0"/>
@@ -184,7 +188,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Ptnr PrCtr"/></t:label>
                                     <t:template>
-                                        <Input value="{partnerPrCtr}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{partnerPrCtr}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -192,7 +196,7 @@
                                 <t:Column width="120px">
                                     <t:label><Label text="WBS Element"/></t:label>
                                     <t:template>
-                                        <Input value="{wbsElement}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{wbsElement}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="110px"/>
                                     </t:template>
                                 </t:Column>
@@ -200,7 +204,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Cost Center"/></t:label>
                                     <t:template>
-                                        <Input value="{costCenter}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{costCenter}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -208,7 +212,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Profit Center"/></t:label>
                                     <t:template>
-                                        <Input value="{profitCenter}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{profitCenter}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -216,7 +220,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Int.Order"/></t:label>
                                     <t:template>
-                                        <Input value="{internalOrder}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{internalOrder}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -224,7 +228,7 @@
                                 <t:Column width="100px">
                                     <t:label><Label text="Personnel"/></t:label>
                                     <t:template>
-                                        <Input value="{personnel}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{personnel}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="90px"/>
                                     </t:template>
                                 </t:Column>
@@ -232,7 +236,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Contract"/></t:label>
                                     <t:template>
-                                        <Input value="{contract}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{contract}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -240,7 +244,7 @@
                                 <t:Column width="100px">
                                     <t:label><Label text="Ctr Type"/></t:label>
                                     <t:template>
-                                        <Input value="{contractType}" enabled="{= !${isSystemLine}}"
+                                        <Input value="{contractType}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="90px"/>
                                     </t:template>
                                 </t:Column>
@@ -248,7 +252,8 @@
                                 <t:Column width="120px">
                                     <t:label><Label text="Assignment"/></t:label>
                                     <t:template>
-                                        <Input value="{assignment}" placeholder="—" width="110px"/>
+                                        <Input value="{assignment}" placeholder="—" width="110px"
+                                               enabled="{/appState/isEditMode}"/>
                                     </t:template>
                                 </t:Column>
 
@@ -256,30 +261,31 @@
                                     <t:label><Label text="Item Text *"/></t:label>
                                     <t:template>
                                         <Input value="{itemText}" placeholder="Item text"
-                                               change="onGLLineChange" width="130px"/>
+                                               change="onGLLineChange" width="130px"
+                                               enabled="{/appState/isEditMode}"/>
                                     </t:template>
                                 </t:Column>
 
                                 <t:Column width="110px">
                                     <t:label><Label text="LineRef1"/></t:label>
-                                    <t:template><Input value="{lineRef1}" placeholder="—" width="100px"/></t:template>
+                                    <t:template><Input value="{lineRef1}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
                                 </t:Column>
 
                                 <t:Column width="110px">
                                     <t:label><Label text="LineRef2"/></t:label>
-                                    <t:template><Input value="{lineRef2}" placeholder="—" width="100px"/></t:template>
+                                    <t:template><Input value="{lineRef2}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
                                 </t:Column>
 
                                 <t:Column width="110px">
                                     <t:label><Label text="LineRef3"/></t:label>
-                                    <t:template><Input value="{lineRef3}" placeholder="—" width="100px"/></t:template>
+                                    <t:template><Input value="{lineRef3}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
                                 </t:Column>
 
                                 <t:Column width="50px" hAlign="Center">
                                     <t:label><Label text=""/></t:label>
                                     <t:template>
                                         <Button icon="sap-icon://delete" type="Transparent"
-                                                visible="{= !${isSystemLine}}"
+                                                visible="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
                                                 press="onDeleteInitiatorLine"
                                                 tooltip="Delete line"/>
                                     </t:template>

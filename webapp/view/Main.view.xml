@@ -11,7 +11,7 @@
         <uxap:ObjectPageLayout
             id="mainPage"
             busy="{/appState/isBusy}"
-            showFooter="true"
+            showFooter="{/appState/isEditMode}"
             alwaysShowContentHeader="false"
             upperCaseAnchorBar="false"
             enableLazyLoading="false"
@@ -26,13 +26,20 @@
             </uxap:headerContent>
 
             <uxap:sections>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionHeaderData"    type="XML"/>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionPartyDetails"  type="XML"/>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionDocDetails"    type="XML"/>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionInitiatorGL"   type="XML"/>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionRecipientGL"   type="XML"/>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionAttachments"   type="XML"/>
-                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionWorkflow"      type="XML"/>
+                <!-- 1. DOCUMENT TYPE SECTION -->
+                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionHeaderData" type="XML"/>
+
+                <!-- 2. BUSINESS PARTNERS (INITIATOR/RECIPIENT) SECTION -->
+                <!-- <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionPartyDetails" type="XML"/> -->
+
+                <!-- 3. DOCUMENT DETAILS SECTION -->
+                <!-- <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionDocDetails" type="XML"/> -->
+
+                <!-- ADDITIONAL FINANCIAL & WORKFLOW SECTIONS -->
+                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionInitiatorGL" type="XML"/>
+                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionRecipientGL" type="XML"/>
+                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionAttachments" type="XML"/>
+                <core:Fragment fragmentName="ZFI_INTERCO.fragment.SectionWorkflow" type="XML"/>
             </uxap:sections>
 
             <uxap:footer>

@@ -5,7 +5,7 @@
     <FlexBox wrap="Wrap" alignItems="Start" class="sapUiSmallMarginBottom">
 
         <VBox class="sapUiLargeMarginEnd">
-            <Label text="TRANSACTION TYPE" design="Bold" class="sapUiTinyMarginBottom"/>
+            <Label text="TRANSACTION TYPE " design="Bold" class="sapUiTinyMarginBottom"/>
             <ObjectStatus
                 text="{/headerData/transactionType}"
                 state="{path: '/headerData/transactionType', formatter: '.formatter.transactionTypeState'}"

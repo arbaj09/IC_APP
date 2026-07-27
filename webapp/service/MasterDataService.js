@@ -6,89 +6,58 @@ sap.ui.define([], function () {
     // back-end is available. The public interface (Promise-based methods below)
     // stays identical — only this section changes.
 
+    // Company codes aligned with real SAP S/4HANA tenant (my406980).
     var _aCodes = [
-        { companyCode: "M111", name: "Madiba Holdings (Pty) Ltd",   country: "ZA" },
-        { companyCode: "M040", name: "Madiba Africa Ltd",            country: "KE" },
-        { companyCode: "M042", name: "Madiba East Africa (T) Ltd",   country: "TZ" },
-        { companyCode: "M150", name: "Madiba West Ltd",              country: "NG" },
-        { companyCode: "M177", name: "Madiba North Ltd",             country: "GH" },
-        { companyCode: "M337", name: "Madiba Southern Ltd",          country: "ZW" },
-        { companyCode: "M488", name: "Madiba Investments Ltd",       country: "MW" },
-        { companyCode: "M790", name: "Madiba Services Ltd",          country: "MU" }
+        { companyCode: "1110", name: "Madiba Holdings (Pty) Ltd",   country: "ZA" },
+        { companyCode: "1002", name: "Madiba Africa Ltd",            country: "KE" },
+        { companyCode: "1006", name: "Madiba East Africa (T) Ltd",   country: "TZ" },
+        { companyCode: "1150", name: "Madiba West Ltd",              country: "NG" },
+        { companyCode: "1177", name: "Madiba North Ltd",             country: "GH" },
+        { companyCode: "1337", name: "Madiba Southern Ltd",          country: "ZW" },
+        { companyCode: "1488", name: "Madiba Investments Ltd",       country: "MW" },
+        { companyCode: "1790", name: "Madiba Services Ltd",          country: "MU" }
     ];
 
-    // T001U intercompany relationships — VBUKR=initiator, ABUKR=recipient
-    // Full bilateral mesh: every entity pair has a clearing account in both directions.
+    // T001U intercompany relationships.
+    // bp = SAP Customer number of the RECIPIENT entity in the INITIATOR's company books.
+    //      This is what is passed as "Customer" in the I_CustomerCompany OData V4 filter.
+    // konts = display label for the reverse / initiator BP field (informational only).
+    //
+    // Real customer numbers sourced from I_CustomerCompany API response:
+    //   1110 / Customer 1000061 → ReconciliationAccount 12100000
+    //   1110 / Customer 1        → ReconciliationAccount 12100000
+    //   1002 / Customer 1000050 → ReconciliationAccount 121500
+    //   1002 / Customer 1000000 → ReconciliationAccount 121500
+    //   1006 / Customer 1000050 → ReconciliationAccount 12100000
     var _aRelationships = [
-        // M111 (ZA) ↔ all subsidiaries
-        { vbukr: "M111", abukr: "M040", konts: "ICM04000", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "M111", abukr: "M042", konts: "ICM04200", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "M111", abukr: "M150", konts: "ICM15000", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "M111", abukr: "M177", konts: "ICM17700", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "M111", abukr: "M337", konts: "ICM33700", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "M111", abukr: "M488", konts: "ICM48800", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "M111", abukr: "M790", konts: "ICM79000", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M040", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "M042", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "M150", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "M177", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "M337", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "M488", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "M790", abukr: "M111", konts: "ICM11100", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        // 1110 (ZA) → subsidiaries
+        // bp    = Customer number of recipient in initiator's books (passed to I_CustomerCompany)
+        // konts = Reconciliation account (KNBK-AKONT) — used as GL Account fallback when API is unavailable
+        { vbukr: "1110", abukr: "1002", bp: "1000061", konts: "12100000", bschs: "01", name: "Madiba Africa Ltd" },
+        { vbukr: "1110", abukr: "1006", bp: "1",       konts: "12100000", bschs: "01", name: "Madiba East Africa (T) Ltd" },
+        { vbukr: "1110", abukr: "1150", bp: "1000062", konts: "12100000", bschs: "01", name: "Madiba West Ltd" },
+        { vbukr: "1110", abukr: "1177", bp: "1000063", konts: "12100000", bschs: "01", name: "Madiba North Ltd" },
+        { vbukr: "1110", abukr: "1337", bp: "1000064", konts: "12100000", bschs: "01", name: "Madiba Southern Ltd" },
+        { vbukr: "1110", abukr: "1488", bp: "1000065", konts: "12100000", bschs: "01", name: "Madiba Investments Ltd" },
+        { vbukr: "1110", abukr: "1790", bp: "1000066", konts: "12100000", bschs: "01", name: "Madiba Services Ltd" },
 
-        // M040 (KE) ↔ other subsidiaries
-        { vbukr: "M040", abukr: "M042", konts: "IC040042", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "M040", abukr: "M150", konts: "IC040150", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "M040", abukr: "M177", konts: "IC040177", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "M040", abukr: "M337", konts: "IC040337", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "M040", abukr: "M488", konts: "IC040488", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "M040", abukr: "M790", konts: "IC040790", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M042", abukr: "M040", konts: "IC042040", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "M150", abukr: "M040", konts: "IC150040", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "M177", abukr: "M040", konts: "IC177040", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "M337", abukr: "M040", konts: "IC337040", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "M488", abukr: "M040", konts: "IC488040", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "M790", abukr: "M040", konts: "IC790040", bschs: "01", name: "Madiba Africa Ltd" },
+        // Subsidiaries → 1110
+        { vbukr: "1002", abukr: "1110", bp: "1000000", konts: "121500",   bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        { vbukr: "1006", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        { vbukr: "1150", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        { vbukr: "1177", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        { vbukr: "1337", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        { vbukr: "1488", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
+        { vbukr: "1790", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
 
-        // M042 (TZ) ↔ other subsidiaries
-        { vbukr: "M042", abukr: "M150", konts: "IC042150", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "M042", abukr: "M177", konts: "IC042177", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "M042", abukr: "M337", konts: "IC042337", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "M042", abukr: "M488", konts: "IC042488", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "M042", abukr: "M790", konts: "IC042790", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M150", abukr: "M042", konts: "IC150042", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "M177", abukr: "M042", konts: "IC177042", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "M337", abukr: "M042", konts: "IC337042", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "M488", abukr: "M042", konts: "IC488042", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "M790", abukr: "M042", konts: "IC790042", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-
-        // M150 (NG) ↔ other subsidiaries
-        { vbukr: "M150", abukr: "M177", konts: "IC150177", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "M150", abukr: "M337", konts: "IC150337", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "M150", abukr: "M488", konts: "IC150488", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "M150", abukr: "M790", konts: "IC150790", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M177", abukr: "M150", konts: "IC177150", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "M337", abukr: "M150", konts: "IC337150", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "M488", abukr: "M150", konts: "IC488150", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "M790", abukr: "M150", konts: "IC790150", bschs: "01", name: "Madiba West Ltd" },
-
-        // M177 (GH) ↔ other subsidiaries
-        { vbukr: "M177", abukr: "M337", konts: "IC177337", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "M177", abukr: "M488", konts: "IC177488", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "M177", abukr: "M790", konts: "IC177790", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M337", abukr: "M177", konts: "IC337177", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "M488", abukr: "M177", konts: "IC488177", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "M790", abukr: "M177", konts: "IC790177", bschs: "01", name: "Madiba North Ltd" },
-
-        // M337 (ZW) ↔ other subsidiaries
-        { vbukr: "M337", abukr: "M488", konts: "IC337488", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "M337", abukr: "M790", konts: "IC337790", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M488", abukr: "M337", konts: "IC488337", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "M790", abukr: "M337", konts: "IC790337", bschs: "01", name: "Madiba Southern Ltd" },
-
-        // M488 (MW) ↔ M790 (MU)
-        { vbukr: "M488", abukr: "M790", konts: "IC488790", bschs: "01", name: "Madiba Services Ltd" },
-        { vbukr: "M790", abukr: "M488", konts: "IC790488", bschs: "01", name: "Madiba Investments Ltd" }
+        // Cross-subsidiary relationships
+        { vbukr: "1002", abukr: "1006", bp: "1000050", konts: "121500",   bschs: "01", name: "Madiba East Africa (T) Ltd" },
+        { vbukr: "1006", abukr: "1002", bp: "1000000", konts: "12100000", bschs: "01", name: "Madiba Africa Ltd" },
+        { vbukr: "1002", abukr: "1150", bp: "1000070", konts: "121500",   bschs: "01", name: "Madiba West Ltd" },
+        { vbukr: "1002", abukr: "1177", bp: "1000071", konts: "121500",   bschs: "01", name: "Madiba North Ltd" },
+        { vbukr: "1002", abukr: "1337", bp: "1000072", konts: "121500",   bschs: "01", name: "Madiba Southern Ltd" },
+        { vbukr: "1002", abukr: "1488", bp: "1000073", konts: "121500",   bschs: "01", name: "Madiba Investments Ltd" },
+        { vbukr: "1002", abukr: "1790", bp: "1000074", konts: "121500",   bschs: "01", name: "Madiba Services Ltd" }
     ];
 
     var _aTaxCodes = [
@@ -148,7 +117,8 @@ sap.ui.define([], function () {
                 })
                 .map(function (r) {
                     return {
-                        bp:     r.konts,
+                        bp:     r.bp,
+                        konts:  r.konts,
                         bpName: r.name,
                         cc:     r.abukr,
                         ccName: _ccName(r.abukr)
@@ -195,6 +165,89 @@ sap.ui.define([], function () {
         },
 
         /**
+         * Retrieves the FI Reconciliation Account (KNBK-AKONT) for the given
+         * CompanyCode / Customer pair from the SAP standard entity I_CustomerCompany.
+         *
+         * The ReconciliationAccount is used as the GL Account on the System BP
+         * Clearing Line (row 0 of initiatorLines), replacing the mock `konts` value.
+         *
+         * Phase 1 (active): returns mock data so the controller chain works end-to-end
+         *   without a live backend.
+         * Phase 2 (live):   replace the mock block with the jQuery.ajax call below;
+         *   the method signature and return contract are identical, so no controller
+         *   changes are required.
+         *
+         * OData V4: GET /sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/
+         *               I_CustomerCompany
+         *               ?$filter=CompanyCode eq '{sCompanyCode}' and Customer eq '{sCustomer}'
+         *               &$select=ReconciliationAccount,Customer
+         *               &$top=1
+         *
+         * @param {string} sCompanyCode  Initiator company code (posting entity)
+         * @param {string} sCustomer     Recipient entity's SAP Customer number
+         * @returns {Promise<{reconciliationAccount: string, customer: string} | null>}
+         *          Resolves to null when no match is found; rejects on network error.
+         */
+        getReconciliationAccount: function (sCompanyCode, sCustomer) {
+            // ── PHASE FLAG ────────────────────────────────────────────────────────
+            // Set to true when the communication arrangement for zsb_interco_app
+            // is active and USER_SAP_COM_BTP has authorization for I_CustomerCompany.
+            var USE_LIVE_API = true;
+
+            if (!USE_LIVE_API) {
+                // Phase 1: mock — returns synchronously so the clearing line updates
+                // immediately without a network round-trip.
+                var _aMock = {
+                    "M111": "12100000", "M040": "12100000", "M042": "12100000",
+                    "M150": "12100000", "M177": "12100000", "M337": "12100000",
+                    "M488": "12100000", "M790": "12100000"
+                };
+                return Promise.resolve({
+                    reconciliationAccount: _aMock[sCompanyCode] || "12100000",
+                    customer: sCustomer
+                });
+            }
+
+            // Phase 2: live OData V4 — activate by setting USE_LIVE_API = true above.
+            var sServiceRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+            var sFilter      = "CompanyCode eq '" + sCompanyCode +
+                               "' and Customer eq '" + sCustomer + "'";
+            var sUrl = sServiceRoot + "I_CustomerCompany" +
+                       "?$filter=" + encodeURIComponent(sFilter) +
+                       "&$select=ReconciliationAccount,Customer" +
+                       "&$top=1";
+
+            return new Promise(function (resolve, reject) {
+                jQuery.ajax({
+                    url:    sUrl,
+                    method: "GET",
+                    headers: {
+                        "Accept":           "application/json",
+                        "OData-Version":    "4.0",
+                        "OData-MaxVersion": "4.0"
+                    },
+                    success: function (oData) {
+                        var aValue = (oData && oData.value) || [];
+                        if (!aValue.length) {
+                            resolve(null);
+                            return;
+                        }
+                        resolve({
+                            reconciliationAccount: aValue[0].ReconciliationAccount,
+                            customer:              aValue[0].Customer
+                        });
+                    },
+                    error: function (oXHR, sStatus, sError) {
+                        reject(new Error(
+                            "I_CustomerCompany request failed [" + oXHR.status + " " + sError + "]" +
+                            " for CompanyCode=" + sCompanyCode + ", Customer=" + sCustomer
+                        ));
+                    }
+                });
+            });
+        },
+
+        /**
          * Fetches intercompany document types from the custom S/4HANA CBO.
          * Locally: proxied by ui5-middleware-simpleproxy (see ui5.yaml).
          * In BTP production: the destination handles the host and auth.
@@ -219,6 +272,186 @@ sap.ui.define([], function () {
                     error: function () {
                         resolve([]);
                     }
+                });
+            });
+        },
+
+        // ── Internal: fetch CSRF token required for mutating OData V4 requests ─
+        _fetchCsrfToken: function (sRoot) {
+            return new Promise(function (resolve, reject) {
+                jQuery.ajax({
+                    url:    sRoot + "ZC_INTERCO_JE_HEADER?$top=0",
+                    method: "GET",
+                    headers: { "X-CSRF-Token": "Fetch", "OData-Version": "4.0" },
+                    complete: function (oXHR) {
+                        var sToken  = oXHR.getResponseHeader("X-CSRF-Token");
+                        var sType   = (oXHR.getResponseHeader("Content-Type") || "").toLowerCase();
+                        var bSaml   = sType.indexOf("text/html") !== -1;
+
+                        if (!sToken || bSaml) {
+                            reject(new Error(
+                                "SAP authentication required.\n\n" +
+                                "The posting service requires an active session via the API endpoint.\n\n" +
+                                "Action needed: ask the SAP Basis team to expose ZSD_INTERCO_APP via a " +
+                                "Communication Arrangement and add the credentials to ui5.yaml."
+                            ));
+                            return;
+                        }
+                        resolve(sToken);
+                    }
+                });
+            });
+        },
+
+        /**
+         * Posts an intercompany document to ZC_INTERCO_JE_HEADER / ZC_INTERCO_JE_ITEM.
+         *
+         * Flow (SAP RAP draft pattern):
+         *   1. POST ZC_INTERCO_JE_HEADER      → creates document, returns accountingdocument_temp
+         *   2. POST …/_Item (per line)         → creates line items via navigation association
+         *   3. POST …/Activate (if draft)      → activates the document
+         *
+         * @param {object} oHeader   /headerData model object
+         * @param {Array}  aLines    /initiatorLines model array
+         * @returns {Promise<{accountingdocument_temp: string}>}
+         */
+        submitIntercoDocument: function (oHeader, aLines) {
+            var sRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+
+            // Convert SAP UI5 date string (MM/DD/YYYY or DD.MM.YYYY or YYYY-MM-DD) → OData Edm.Date
+            function toODataDate(s) {
+                if (!s) { return null; }
+                if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { return s; }
+                var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (m) { return m[3] + "-" + m[1].padStart(2, "0") + "-" + m[2].padStart(2, "0"); }
+                m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+                if (m) { return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"); }
+                return null;
+            }
+
+            function parseError(oXHR) {
+                try {
+                    var oErr = JSON.parse(oXHR.responseText);
+                    return (oErr.error && oErr.error.message) ? oErr.error.message : oXHR.responseText;
+                } catch (e) {
+                    return oXHR.responseText || oXHR.statusText;
+                }
+            }
+
+            var oHdrPayload = {
+                send_companycode:    (oHeader.initiatorCC   || "").slice(0, 4),
+                rec_companycode:     (oHeader.recipientCC   || "").slice(0, 4),
+                documentreferenceid: (oHeader.reference     || "").slice(0, 16),
+                documentheadertext:  (oHeader.headerText    || "").slice(0, 25),
+                documentdate:        toODataDate(oHeader.documentDate),
+                postingdate:         toODataDate(oHeader.postingDate)
+            };
+
+            var aItemPayloads = aLines.map(function (oLine, i) {
+                return {
+                    referencedocumentitem:       String((i + 1) * 10),
+                    documentitemtext:            (oLine.itemText     || "").slice(0, 25),
+                    assignmentreference:         (oLine.assignment   || "").slice(0, 16),
+                    glaccount:                   (oLine.glAccount    || "").slice(0, 10),
+                    currencycode:                (oHeader.currency   || "USD").slice(0, 5),
+                    amountintransactioncurrency: parseFloat(oLine.amountDC) || 0,
+                    debitcreditcode:             oLine.debitCredit   || "S",
+                    profitcenter:                (oLine.profitCenter || "").slice(0, 10)
+                };
+            });
+
+            return this._fetchCsrfToken(sRoot).then(function (sToken) {
+                var oHdrs = {
+                    "Accept":           "application/json",
+                    "Content-Type":     "application/json",
+                    "OData-Version":    "4.0",
+                    "OData-MaxVersion": "4.0",
+                    "X-CSRF-Token":     sToken
+                };
+
+                // ── Step 1: Create header ────────────────────────────────────
+                return new Promise(function (resolve, reject) {
+                    jQuery.ajax({
+                        url:         sRoot + "ZC_INTERCO_JE_HEADER",
+                        method:      "POST",
+                        dataType:    "json",
+                        headers:     oHdrs,
+                        contentType: "application/json",
+                        data:        JSON.stringify(oHdrPayload),
+                        success:     function (oData) {
+                            resolve({ result: oData, hdrs: oHdrs });
+                        },
+                        error:       function (oXHR, sStatus) {
+                            var sDetail = sStatus === "parseerror"
+                                ? "SAP returned an HTML authentication page — session not established."
+                                : parseError(oXHR);
+                            reject(new Error("Header creation failed [" + oXHR.status + "]: " + sDetail));
+                        }
+                    });
+                });
+
+            }).then(function (oCtx) {
+                // ── Step 2: Create items via _Item navigation ────────────────
+                var sDocId   = oCtx.result.accountingdocument_temp;
+                var bActive  = oCtx.result.IsActiveEntity === true;
+                var sKeyFrag = "ZC_INTERCO_JE_HEADER(accountingdocument_temp='" + sDocId +
+                               "',IsActiveEntity=" + bActive + ")";
+
+                var pChain = Promise.resolve();
+                aItemPayloads.forEach(function (oItem) {
+                    pChain = pChain.then(function () {
+                        return new Promise(function (resolve, reject) {
+                            jQuery.ajax({
+                                url:         sRoot + sKeyFrag + "/_Item",
+                                method:      "POST",
+                                dataType:    "json",
+                                headers:     oCtx.hdrs,
+                                contentType: "application/json",
+                                data:        JSON.stringify(oItem),
+                                success:     function () { resolve(); },
+                                error:       function (oXHR, sStatus) {
+                                    var sDetail = sStatus === "parseerror"
+                                        ? "SAP returned an HTML authentication page."
+                                        : parseError(oXHR);
+                                    reject(new Error(
+                                        "Item " + oItem.referencedocumentitem +
+                                        " creation failed [" + oXHR.status + "]: " + sDetail
+                                    ));
+                                }
+                            });
+                        });
+                    });
+                });
+
+                return pChain.then(function () {
+                    return { docId: sDocId, bActive: bActive, sKeyFrag: sKeyFrag, hdrs: oCtx.hdrs };
+                });
+
+            }).then(function (oCtx) {
+                // ── Step 3: Activate if draft ────────────────────────────────
+                if (oCtx.bActive) {
+                    return { accountingdocument_temp: oCtx.docId };
+                }
+                var sActivateUrl = sRoot + oCtx.sKeyFrag +
+                                   "/com.sap.gateway.srvd.zsd_interco_app.v0001.Activate";
+                return new Promise(function (resolve, reject) {
+                    jQuery.ajax({
+                        url:         sActivateUrl,
+                        method:      "POST",
+                        dataType:    "json",
+                        headers:     oCtx.hdrs,
+                        contentType: "application/json",
+                        data:        "{}",
+                        success:     function (oData) {
+                            resolve({ accountingdocument_temp: (oData && oData.accountingdocument_temp) || oCtx.docId });
+                        },
+                        error:       function (oXHR, sStatus) {
+                            var sDetail = sStatus === "parseerror"
+                                ? "SAP returned an HTML authentication page."
+                                : parseError(oXHR);
+                            reject(new Error("Activation failed [" + oXHR.status + "]: " + sDetail));
+                        }
+                    });
                 });
             });
         }
