@@ -40,6 +40,15 @@ sap.ui.define([
                 oModel.setProperty("/referenceData/companyCodes", aCodes);
                 that._loadUserDefaultCC();
             });
+
+            MasterDataService.getAllTaxCodes().then(function (aAll) {
+                oModel.setProperty("/referenceData/allTaxCodes", aAll);
+                var sDefaultCountry = "ZA"; // matches DEFAULT.INITIATOR_CC = 1110
+                oModel.setProperty("/referenceData/initiatorTaxCodes",
+                    aAll.filter(function (t) { return t.country === sDefaultCountry; }));
+            }).catch(function () {
+                oModel.setProperty("/referenceData/allTaxCodes", []);
+            });
             MasterDataService.getTaxCodes().then(function (aTaxCodes) {
                 oModel.setProperty("/referenceData/taxCodes", aTaxCodes);
             });
@@ -99,9 +108,11 @@ sap.ui.define([
                     initiatorTaxCode: "",
                     initiatorTaxAmount: "0.00",
                     initiatorCountry: "ZA (T001-LAND1 for 1110)",
+                    initiatorTaxCodeState: "None",
                     recipientTaxCode: "",
                     recipientTaxAmount: "0.00",
                     recipientCountry: "— (derived from Recipient CC)",
+                    recipientTaxCodeState: "None",
                     taxCalcVisible: false,
                     taxCalcRows: [],
 
@@ -197,14 +208,18 @@ sap.ui.define([
 
                 appState: {
                     isBusy: false,
-                    isEditMode: false
+                    isEditMode: false,
+                    isHeaderEditable: false
                 },
 
                 referenceData: {
-                    companyCodes:   [],
-                    taxCodes:       [],
-                    closedPeriods:  [],
-                    documentTypes:  []
+                    companyCodes:      [],
+                    taxCodes:          [],
+                    allTaxCodes:       [],
+                    initiatorTaxCodes: [],
+                    recipientTaxCodes: [],
+                    closedPeriods:     [],
+                    documentTypes:     []
                 }
             };
 
@@ -296,6 +311,23 @@ sap.ui.define([
             oModel.setProperty("/headerData/initiatorCountry",
                 oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
 
+            oModel.setProperty("/headerData/initiatorTaxCode", "");
+            oModel.setProperty("/referenceData/initiatorTaxCodes", []);
+            if (oCC && oCC.country) {
+                var sIniCountry = oCC.country;
+                var aAllIni = oModel.getProperty("/referenceData/allTaxCodes") || [];
+                if (aAllIni.length > 0) {
+                    oModel.setProperty("/referenceData/initiatorTaxCodes",
+                        aAllIni.filter(function (t) { return t.country === sIniCountry; }));
+                } else {
+                    MasterDataService.getAllTaxCodes().then(function (aAll) {
+                        oModel.setProperty("/referenceData/allTaxCodes", aAll);
+                        oModel.setProperty("/referenceData/initiatorTaxCodes",
+                            aAll.filter(function (t) { return t.country === sIniCountry; }));
+                    });
+                }
+            }
+
             oModel.setProperty("/headerData/initiatorBP", "");
             oModel.setProperty("/headerData/recipientBP", "");
             oModel.setProperty("/headerData/recipientBPName", "");
@@ -321,6 +353,24 @@ sap.ui.define([
             oModel.setProperty("/headerData/recipientCCName", oCC ? oCC.name : (sCC ? "— Unknown company code" : ""));
             oModel.setProperty("/headerData/recipientCountry",
                 oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
+
+            oModel.setProperty("/headerData/recipientTaxCode", "");
+            oModel.setProperty("/referenceData/recipientTaxCodes", []);
+            if (oCC && oCC.country) {
+                var sRecCountry = oCC.country;
+                var aAllRec = oModel.getProperty("/referenceData/allTaxCodes") || [];
+                if (aAllRec.length > 0) {
+                    oModel.setProperty("/referenceData/recipientTaxCodes",
+                        aAllRec.filter(function (t) { return t.country === sRecCountry; }));
+                } else {
+                    MasterDataService.getAllTaxCodes().then(function (aAll) {
+                        oModel.setProperty("/referenceData/allTaxCodes", aAll);
+                        oModel.setProperty("/referenceData/recipientTaxCodes",
+                            aAll.filter(function (t) { return t.country === sRecCountry; }));
+                    });
+                }
+            }
+
             oModel.setProperty("/headerData/recipientBP", "");
             oModel.setProperty("/headerData/recipientBPName", "");
             oModel.setProperty("/headerData/initiatorBP", "");
@@ -620,6 +670,7 @@ sap.ui.define([
             this._syncBPClearingLine();
             this._syncRecipientBPClearingLine();
             this._recalculateBalance();
+            this._validateTaxCodeState();
         },
 
         // ─────────────────────────────────────────────────────────────────────
@@ -631,11 +682,22 @@ sap.ui.define([
             this._syncBPClearingLine();
             this._recalculateBalance();
             this._syncRecipientBPClearingLine();
+            this._validateTaxCodeState();
         },
 
         onRecipientTaxCodeChange: function () {
             this._recalculateTax();
             this._syncRecipientBPClearingLine();
+            this._validateTaxCodeState();
+        },
+
+        _validateTaxCodeState: function () {
+            var oModel = this.getView().getModel();
+            var fTax = parseFloat(oModel.getProperty("/headerData/taxAmount")) || 0;
+            var sIni = oModel.getProperty("/headerData/initiatorTaxCode") || "";
+            var sRec = oModel.getProperty("/headerData/recipientTaxCode") || "";
+            oModel.setProperty("/headerData/initiatorTaxCodeState", (fTax > 0 && !sIni) ? "Error" : "None");
+            oModel.setProperty("/headerData/recipientTaxCodeState",  (fTax > 0 && !sRec) ? "Error" : "None");
         },
 
         _recalculateTax: function () {
@@ -644,9 +706,10 @@ sap.ui.define([
             var sIniCode = oModel.getProperty("/headerData/initiatorTaxCode") || "";
             var sRecCode = oModel.getProperty("/headerData/recipientTaxCode") || "";
 
-            var aTaxCodes = oModel.getProperty("/referenceData/taxCodes") || [];
-            var oIniTax = aTaxCodes.find(function (t) { return t.code === sIniCode; });
-            var oRecTax = aTaxCodes.find(function (t) { return t.code === sRecCode; });
+            var aIniCodes = oModel.getProperty("/referenceData/initiatorTaxCodes") || [];
+            var aRecCodes = oModel.getProperty("/referenceData/recipientTaxCodes") || [];
+            var oIniTax = aIniCodes.find(function (t) { return t.code === sIniCode; });
+            var oRecTax = aRecCodes.find(function (t) { return t.code === sRecCode; });
             var fIniRate = oIniTax ? oIniTax.rate : 0;
             var fRecRate = oRecTax ? oRecTax.rate : 0;
 
@@ -991,6 +1054,17 @@ sap.ui.define([
                 if (!oHeader.recipientCC) addMsg("E", "ZFI", "002", "Recipient Company Code is required.");
                 if (!oHeader.postingDate) addMsg("E", "ZFI", "003", "Posting Date is required.");
 
+                var fTaxAmount = parseFloat(oHeader.taxAmount) || 0;
+                if (fTaxAmount > 0 && !oHeader.recipientTaxCode) {
+                    oModel.setProperty("/appState/isBusy", false);
+                    oModel.setProperty("/recipientValidation", {
+                        visible: true,
+                        state: "Error",
+                        text: "Tax Code is required when a Tax Amount is entered. Please select a Tax / VAT Code."
+                    });
+                    return;
+                }
+
                 if (aUserLines.length === 0) {
                     addMsg("E", "ZFI", "004", "At least one G/L line item must be entered.");
                 }
@@ -1050,6 +1124,19 @@ sap.ui.define([
                 if (!oHeader.initiatorCC) addMsg("E", "ZFI", "001", "Initiator Company Code is required.");
                 if (!oHeader.recipientCC) addMsg("E", "ZFI", "002", "Recipient Company Code is required.");
                 if (!oHeader.postingDate) addMsg("E", "ZFI", "003", "Posting Date is required.");
+
+                var fTaxAmount = parseFloat(oHeader.taxAmount) || 0;
+                var sTaxCode = oHeader.initiatorTaxCode;
+                if (fTaxAmount > 0 && !sTaxCode) {
+                    oModel.setProperty("/appState/isBusy", false);
+                    oModel.setProperty("/initiatorValidation", {
+                        visible: true,
+                        state: "Error",
+                        text: "Tax Code is required when a Tax Amount is entered. Please select a Tax / VAT Code."
+                    });
+                    return;
+                }
+
 
                 // Line items check
                 if (aUserLines.length === 0) {
@@ -1134,6 +1221,7 @@ console.log("Lines for Submit:", aLines);
                     MasterDataService.submitIntercoDocument(oHeader, aLines)
                         .then(function (oResult) {
                             oModel.setProperty("/appState/isBusy", false);
+                            oModel.setProperty("/appState/isHeaderEditable", false);
                             oModel.setProperty("/workflow/status", Constants.WORKFLOW_STATUS.SUBMITTED);
                             oModel.setProperty("/workflow/statusState", "Success");
                             oModel.setProperty("/workflow/intercoRef", oResult.accountingdocument_temp || "POSTED");
@@ -1168,7 +1256,9 @@ console.log("Lines for Submit:", aLines);
         },
 
         onCreateNew: function () {
-            this.getView().getModel().setProperty("/appState/isEditMode", true);
+            var oModel = this.getView().getModel();
+            oModel.setProperty("/appState/isEditMode", true);
+            oModel.setProperty("/appState/isHeaderEditable", true);
         },
 
         onCancel: function () {

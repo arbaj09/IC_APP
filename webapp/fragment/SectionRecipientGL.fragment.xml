@@ -34,14 +34,14 @@
                                 <Label text="Tax / VAT Code" textAlign="Left"/>
                                 <VBox renderType="Bare">
                                     <Select selectedKey="{/headerData/recipientTaxCode}"
-                                            change="onRecipientTaxCodeChange" width="220px">
-                                        <core:Item key=""    text="(blank) — not applicable"/>
-                                        <core:Item key="A0" text="A0 — Exempt / Not taxable (0%)"/>
-                                        <core:Item key="S0" text="S0 — Zero Rated (0%)"/>
-                                        <core:Item key="V1" text="V1 — Standard VAT 15%"/>
-                                        <core:Item key="V2" text="V2 — Standard VAT 20%"/>
-                                        <core:Item key="V5" text="V5 — Reduced Rate 5%"/>
-                                        <core:Item key="VE" text="VE — VAT Exempt"/>
+                                            change="onRecipientTaxCodeChange"
+                                            enabled="{/appState/isEditMode}"
+                                            width="280px"
+                                            forceSelection="false"
+                                            valueState="{/headerData/recipientTaxCodeState}"
+                                            valueStateText="Tax Code is required when a Tax Amount is entered."
+                                            items="{path: '/referenceData/recipientTaxCodes', templateShareable: false}">
+                                        <core:ListItem key="{code}" text="{= ${code} + ' - ' + ${description}}"/>
                                     </Select>
                                     <Text text="{/headerData/recipientCountry}" class="sapUiTinyMarginTop"/>
                                 </VBox>

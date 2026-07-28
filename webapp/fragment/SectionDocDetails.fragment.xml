@@ -20,7 +20,7 @@
                     valueFormat="dd.MM.yyyy"
                     placeholder="dd.MM.yyyy"
                     change="onDocumentDateChange"
-                    editable="{/appState/isEditMode}"
+                    editable="{/appState/isHeaderEditable}"
                     width="180px"/>
             </VBox>
 
@@ -33,7 +33,7 @@
                     valueFormat="dd.MM.yyyy"
                     placeholder="dd.MM.yyyy"
                     change="onPostingDateChange"
-                    editable="{/appState/isEditMode}"
+                    editable="{/appState/isHeaderEditable}"
                     width="180px"/>
             </VBox>
 
@@ -61,7 +61,7 @@
                     value="{/headerData/reference}"
                     maxLength="18"
                     placeholder="Up to 18 chars (BKPF-XBLNR)"
-                    editable="{/appState/isEditMode}"
+                    editable="{/appState/isHeaderEditable}"
                     width="240px"/>
             </VBox>
 
@@ -72,7 +72,7 @@
                     value="{/headerData/headerText}"
                     maxLength="50"
                     placeholder="Up to 50 chars"
-                    editable="{/appState/isEditMode}"
+                    editable="{/appState/isHeaderEditable}"
                     width="240px"/>
             </VBox>
 
@@ -81,7 +81,7 @@
                 <Select
                     id="selCurrency"
                     selectedKey="{/headerData/currency}"
-                    enabled="{/appState/isEditMode}"
+                    enabled="{/appState/isHeaderEditable}"
                     width="120px">
                     <core:Item key="USD" text="USD"/>
                     <core:Item key="EUR" text="EUR"/>
@@ -95,7 +95,7 @@
 
             <!-- 1. Intercompany Net Amount -->
             <VBox id="vboxNetAmount">
-                <Label text="Intercompany Net Amount" required="true" class="sapUiTinyMarginBottom"/>
+                <Label text="IC Net Amount" required="true" class="sapUiTinyMarginBottom"/>
                 <Input
                     id="inpNetAmount"
                     value="{/headerData/netAmount}"
@@ -104,7 +104,7 @@
                     textAlign="End"
                     liveChange="onIntercoAmountChange"
                     change="onIntercoAmountChange"
-                    editable="{/appState/isEditMode}"
+                    editable="{/appState/isHeaderEditable}"
                     width="200px"/>
             </VBox>
 
@@ -119,13 +119,13 @@
                     textAlign="End"
                     liveChange="onIntercoAmountChange"
                     change="onIntercoAmountChange"
-                    editable="{/appState/isEditMode}"
+                    editable="{/appState/isHeaderEditable}"
                     width="200px"/>
             </VBox>
 
             <!-- 3. Total Intercompany Amount (Calculated: Net + Tax) -->
             <VBox id="vboxTotalAmount">
-                <Label text="Total Intercompany Amount" class="sapUiTinyMarginBottom"/>
+                <Label text="Total IC Amount" class="sapUiTinyMarginBottom"/>
                 <Input 
                     id="inpTotalAmount"
                     value="{/headerData/totalIntercoAmount}"

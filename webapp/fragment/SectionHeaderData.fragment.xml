@@ -18,7 +18,7 @@
                             <Label text="Transaction Type" required="true"/>
                             <RadioButtonGroup selectedIndex="{/headerData/transactionTypeIndex}"
                                               select="onTransactionTypeChange" columns="2"
-                                              enabled="{/appState/isEditMode}">
+                                              enabled="{/appState/isHeaderEditable}">
                                 <buttons>
                                     <RadioButton text="IC Invoice"/>
                                     <RadioButton text="IC Accrual Journal"/>
@@ -59,7 +59,7 @@
                 </uxap:blocks>
             </uxap:ObjectPageSubSection>
 
-            <!-- SubSection 2: Tax Invoice -->
+            <!-- SubSection 2: Tax Invoice
             <uxap:ObjectPageSubSection title="Tax Invoice" titleUppercase="false"
                                        visible="{= ${/headerData/transactionType} === 'INV' || ${/headerData/transactionTypeIndex} === 0}">
                 <uxap:blocks>
@@ -67,7 +67,7 @@
                         <CheckBox text="Generate Tax Invoice for this IC Invoice transaction"
                                   selected="{/headerData/taxInvoiceRequired}"
                                   select="onTaxInvoiceCheck"
-                                  enabled="{/appState/isEditMode}"/>
+                                  enabled="{/appState/isHeaderEditable}"/>
                         <Panel visible="{/headerData/taxInvoiceRequired}"
                                headerText="Tax Invoice Details"
                                backgroundDesign="Solid"
@@ -81,7 +81,7 @@
                                         <DatePicker value="{/headerData/taxInvoiceDate}"
                                                     displayFormat="dd.MM.yyyy" valueFormat="dd.MM.yyyy"
                                                     placeholder="dd.MM.yyyy" width="180px"
-                                                    editable="{/appState/isEditMode}"/>
+                                                    editable="{/appState/isHeaderEditable}"/>
                                         <Label text="Invoice Number"/>
                                         <Input value="{/headerData/taxInvoiceNumber}"
                                                placeholder="Assigned on submission"
@@ -91,10 +91,10 @@
                                                maxLength="100"
                                                placeholder="e.g. Management fee recharge — Q1 2026"
                                                width="100%"
-                                               editable="{/appState/isEditMode}"/>
+                                               editable="{/appState/isHeaderEditable}"/>
                                         <Label text="VAT Treatment"/>
                                         <Select selectedKey="{/headerData/taxVATTreatment}"
-                                                enabled="{/appState/isEditMode}">
+                                                enabled="{/appState/isHeaderEditable}">
                                             <core:Item key="Exempt"    text="Exempt — no VAT on invoice"/>
                                             <core:Item key="VAT"       text="VAT applicable — rate from tax code"/>
                                             <core:Item key="ZeroRated" text="Zero-rated"/>
@@ -109,7 +109,7 @@
                         </Panel>
                     </VBox>
                 </uxap:blocks>
-            </uxap:ObjectPageSubSection>
+            </uxap:ObjectPageSubSection> -->
 
             <!-- SubSection 3: Initiator & Recipient -->
             <uxap:ObjectPageSubSection title="Initiator &amp; Recipient" titleUppercase="false">

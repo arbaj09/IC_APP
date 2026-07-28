@@ -8,14 +8,14 @@ sap.ui.define([], function () {
 
     // Company codes aligned with real SAP S/4HANA tenant (my406980).
     var _aCodes = [
-        { companyCode: "1110", name: "Madiba Holdings (Pty) Ltd",   country: "ZA" },
-        { companyCode: "1002", name: "Madiba Africa Ltd",            country: "KE" },
-        { companyCode: "1006", name: "Madiba East Africa (T) Ltd",   country: "TZ" },
-        { companyCode: "1150", name: "Madiba West Ltd",              country: "NG" },
-        { companyCode: "1177", name: "Madiba North Ltd",             country: "GH" },
-        { companyCode: "1337", name: "Madiba Southern Ltd",          country: "ZW" },
-        { companyCode: "1488", name: "Madiba Investments Ltd",       country: "MW" },
-        { companyCode: "1790", name: "Madiba Services Ltd",          country: "MU" }
+        { companyCode: "1110", name: "Madiba Holdings (Pty) Ltd",   country: "US" },
+        { companyCode: "1002", name: "Madiba Africa Ltd",            country: "GB" },
+        { companyCode: "1006", name: "Madiba East Africa (T) Ltd",   country: "US" },
+        { companyCode: "1150", name: "Madiba West Ltd",              country: "GB" },
+        { companyCode: "1177", name: "Madiba North Ltd",             country: "US" },
+        { companyCode: "1337", name: "Madiba Southern Ltd",          country: "GB" },
+        { companyCode: "1488", name: "Madiba Investments Ltd",       country: "US" },
+        { companyCode: "1790", name: "Madiba Services Ltd",          country: "GB" }
     ];
 
     // T001U intercompany relationships.
@@ -71,6 +71,7 @@ sap.ui.define([], function () {
     ];
 
     var _aClosedPeriods = ["01/2024", "02/2024"]; // simulated closed FI periods
+    var _aTaxCodesCache = null; // cache for ZC_RETRIEVE_TAXCODE full list
 
     // ── Helper ───────────────────────────────────────────────────────────────
 
@@ -152,6 +153,57 @@ sap.ui.define([], function () {
          */
         getTaxCodes: function () {
             return Promise.resolve(_aTaxCodes.slice());
+        },
+
+        getAllTaxCodes: function () {
+            var USE_LIVE_API = true;
+            if (!USE_LIVE_API) {
+                return Promise.resolve(_aTaxCodes.slice());
+            }
+            if (_aTaxCodesCache) {
+                return Promise.resolve(_aTaxCodesCache.slice());
+            }
+            return new Promise(function (resolve, reject) {
+                var sRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+                jQuery.ajax({
+                    url:    sRoot + "ZC_RETRIEVE_TAXCODE",
+                    method: "GET",
+                    headers: {
+                        "Accept":           "application/json",
+                        "OData-Version":    "4.0",
+                        "OData-MaxVersion": "4.0"
+                    },
+                    success: function (oData) {
+                        var aRaw = (oData && oData.value) || [];
+                        if (aRaw.length > 0) {
+                            console.log("[TaxCodes] Raw first record keys:", Object.keys(aRaw[0]), aRaw[0]);
+                        }
+                        _aTaxCodesCache = aRaw.map(function (item) {
+                            return {
+                                code:        item.TaxCode,
+                                description: item.TaxCodeDescription,
+                                country:     item.Country,
+                                rate:        0
+                            };
+                        });
+                        console.log("[TaxCodes] Loaded " + _aTaxCodesCache.length + " records from ZC_RETRIEVE_TAXCODE", _aTaxCodesCache);
+                        resolve(_aTaxCodesCache.slice());
+                    },
+                    error: function (oXHR, sStatus, sError) {
+                        console.error("[TaxCodes] ZC_RETRIEVE_TAXCODE failed:", oXHR.status, sError, oXHR.responseText);
+                        reject(new Error(
+                            "Failed to fetch tax codes [" + oXHR.status + " " + sError + "]"
+                        ));
+                    }
+                });
+            });
+        },
+
+        getTaxCodesByCountry: function (sCountry) {
+            if (!sCountry) { return Promise.resolve([]); }
+            return this.getAllTaxCodes().then(function (aAll) {
+                return aAll.filter(function (t) { return t.country === sCountry; });
+            });
         },
 
         /**
@@ -356,12 +408,32 @@ sap.ui.define([], function () {
 
         // ── Internal: fetch CSRF token required for mutating OData V4 requests ─
         _fetchCsrfToken: function (sRoot) {
-            return new Promise(function (resolve) {
+            return new Promise(function (resolve, reject) {
                 jQuery.ajax({
                     url:    sRoot + "ZC_INTERCO_JE_HEADER?$top=0",
                     method: "GET",
                     headers: { "X-CSRF-Token": "Fetch", "OData-Version": "4.0" },
                     complete: function (oXHR) {
+                        var sType = oXHR.getResponseHeader("Content-Type") || "";
+                        if (sType.indexOf("text/html") !== -1) {
+                            reject(new Error(
+                                "Authentication error: SAP returned an SSO redirect during CSRF fetch. " +
+                                "Ensure ui5.yaml uses a communication user (USER_SAP_COM_BTP) with basic auth."
+                            ));
+                            return;
+                        }
+                        if (oXHR.status >= 400) {
+                            var sDetail = oXHR.statusText;
+                            try {
+                                var oErrBody = JSON.parse(oXHR.responseText);
+                                sDetail = (oErrBody.error && oErrBody.error.message) ? oErrBody.error.message : oXHR.responseText;
+                            } catch (e) { /* non-JSON error body */ }
+                            reject(new Error(
+                                "Service access denied [" + oXHR.status + "]: " + sDetail +
+                                " — Assign a Business Role containing the ZSB_INTERCO_APP catalog to USER_SAP_COM_BTP."
+                            ));
+                            return;
+                        }
                         resolve(oXHR.getResponseHeader("X-CSRF-Token") || "");
                     }
                 });
@@ -392,6 +464,11 @@ sap.ui.define([], function () {
                 m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
                 if (m) { return m[3] + "-" + m[2].padStart(2, "0") + "-" + m[1].padStart(2, "0"); }
                 return null;
+            }
+
+            function isSamlRedirect(oXHR) {
+                var sType = oXHR.getResponseHeader("Content-Type") || "";
+                return sType.indexOf("text/html") !== -1;
             }
 
             function parseError(oXHR) {
@@ -443,17 +520,21 @@ sap.ui.define([], function () {
                         headers:     oHdrs,
                         contentType: "application/json",
                         data:        JSON.stringify(oHdrPayload),
-                        success:     function (oData) { 
+                        success:     function (oData, sStatus, oXHR) {
+                            if (isSamlRedirect(oXHR)) {
+                                reject(new Error(
+                                    "Authentication error on header creation: SAP returned an SSO redirect. " +
+                                    "Ensure ui5.yaml uses USER_SAP_COM_BTP with basic auth."
+                                ));
+                                return;
+                            }
                             console.log("================================");
-    console.log("HEADER CREATE RESPONSE");
-    console.log(oData);
-    console.log("JSON =", JSON.stringify(oData));
-    console.log("Keys =", Object.keys(oData));
-    console.log("================================");
-                            resolve(
-                                { result: oData,
-                                 hdrs: oHdrs }
-                            ); 
+                            console.log("HEADER CREATE RESPONSE");
+                            console.log(oData);
+                            console.log("JSON =", JSON.stringify(oData));
+                            console.log("Keys =", Object.keys(oData));
+                            console.log("================================");
+                            resolve({ result: oData, hdrs: oHdrs });
                         },
                         error:       function (oXHR) {
                             reject(new Error("Header creation failed [" + oXHR.status + "]: " + parseError(oXHR)));
@@ -515,8 +596,21 @@ console.log("Doc ID =", sDocId);
                         headers:     oCtx.hdrs,
                         contentType: "application/json",
                         data:        "{}",
-                        success:     function (oData) {
-                            resolve({ accountingdocument_temp: (oData && oData.accountingdocument_temp) || oCtx.docId });
+                        success:     function (oData, sStatus, oXHR) {
+                            if (isSamlRedirect(oXHR)) {
+                                reject(new Error(
+                                    "Session expired during document activation. " +
+                                    "The draft may remain open in SAP — check transaction FB03. " +
+                                    "Refresh the page and re-submit."
+                                ));
+                                return;
+                            }
+                            var sDocRef = (oData && (
+                                oData.accountingdocument_temp ||
+                                oData.AccountingDocument      ||
+                                oData.AccountingDocumentTemp
+                            )) || oCtx.docId;
+                            resolve({ accountingdocument_temp: sDocRef });
                         },
                         error:       function (oXHR) {
                             reject(new Error("Activation failed [" + oXHR.status + "]: " + parseError(oXHR)));

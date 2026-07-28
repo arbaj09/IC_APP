@@ -24,7 +24,7 @@ server:
       afterMiddleware: compression
       mountPath: /sap
       configuration:
-        baseUri: "https://my406980.s4hana.cloud.sap/sap"
+        baseUri: "https://my406980-api.s4hana.cloud.sap/sap"
         strictSSL: false
-        username: "salman.naik@madiba.com"
-        password: "Madibacap@12"
+        username: "USER_SAP_COM_BTP"
+        password: "AME9BEeuDKmWGNyWFMFvwSxdKwyyGFqevFPQPdC("
