@@ -35,7 +35,7 @@
                                 <VBox renderType="Bare">
                                     <Select selectedKey="{/headerData/recipientTaxCode}"
                                             change="onRecipientTaxCodeChange"
-                                            enabled="{/appState/isEditMode}"
+                                            enabled="{/appState/isRecipientEditable}"
                                             width="280px"
                                             forceSelection="false"
                                             valueState="{/headerData/recipientTaxCodeState}"
@@ -82,7 +82,7 @@
                         <Toolbar class="sapUiSmallMarginBottom">
                             <Button text="Add Line" icon="sap-icon://add"
                                     press="onAddRecipientLine" type="Ghost"
-                                    enabled="{/appState/isEditMode}"/>
+                                    enabled="{/appState/isRecipientEditable}"/>
                             <Button text="Validate (F7)" icon="sap-icon://sys-find-next"
                                     press="onRecipientValidate" type="Emphasized"
                                     class="sapUiSmallMarginBegin"/>
@@ -130,7 +130,7 @@
                                     <t:label><Label text="D/C"/></t:label>
                                     <t:template>
                                         <Select selectedKey="{debitCredit}"
-                                                enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                                enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                 change="onRecipientGLLineChange" width="80px">
                                             <core:Item key="S" text="Dr"/>
                                             <core:Item key="H" text="Cr"/>
@@ -141,7 +141,7 @@
                                 <t:Column width="130px">
                                     <t:label><Label text="GL Account *"/></t:label>
                                     <t:template>
-                                        <Input value="{glAccount}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{glAccount}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="GL Acct" change="onRecipientGLLineChange" width="120px"/>
                                     </t:template>
                                 </t:Column>
@@ -156,7 +156,7 @@
                                 <t:Column width="130px" hAlign="End">
                                     <t:label><Label text="Amount (DC)"/></t:label>
                                     <t:template>
-                                        <Input value="{amountDC}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{amountDC}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                type="Number" textAlign="End" placeholder="0.00"
                                                change="onRecipientGLLineChange" width="120px"/>
                                     </t:template>
@@ -165,7 +165,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Tax Code"/></t:label>
                                     <t:template>
-                                        <Select selectedKey="{taxCode}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Select selectedKey="{taxCode}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                 change="onRecipientGLLineChange" width="300px">
                                             <core:Item key=""   text="—"/>
                                             <core:Item key="A0" text="A0"/>
@@ -186,7 +186,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Ptnr PrCtr"/></t:label>
                                     <t:template>
-                                        <Input value="{partnerPrCtr}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{partnerPrCtr}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -194,7 +194,7 @@
                                 <t:Column width="120px">
                                     <t:label><Label text="WBS Element"/></t:label>
                                     <t:template>
-                                        <Input value="{wbsElement}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{wbsElement}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="110px"/>
                                     </t:template>
                                 </t:Column>
@@ -202,7 +202,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Cost Center"/></t:label>
                                     <t:template>
-                                        <Input value="{costCenter}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{costCenter}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -210,7 +210,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Profit Center"/></t:label>
                                     <t:template>
-                                        <Input value="{profitCenter}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{profitCenter}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -218,7 +218,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Int.Order"/></t:label>
                                     <t:template>
-                                        <Input value="{internalOrder}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{internalOrder}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -226,7 +226,7 @@
                                 <t:Column width="100px">
                                     <t:label><Label text="Personnel"/></t:label>
                                     <t:template>
-                                        <Input value="{personnel}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{personnel}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="90px"/>
                                     </t:template>
                                 </t:Column>
@@ -234,7 +234,7 @@
                                 <t:Column width="110px">
                                     <t:label><Label text="Contract"/></t:label>
                                     <t:template>
-                                        <Input value="{contract}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{contract}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="100px"/>
                                     </t:template>
                                 </t:Column>
@@ -242,7 +242,7 @@
                                 <t:Column width="100px">
                                     <t:label><Label text="Ctr Type"/></t:label>
                                     <t:template>
-                                        <Input value="{contractType}" enabled="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                        <Input value="{contractType}" enabled="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                placeholder="—" width="90px"/>
                                     </t:template>
                                 </t:Column>
@@ -251,7 +251,7 @@
                                     <t:label><Label text="Assignment"/></t:label>
                                     <t:template>
                                         <Input value="{assignment}" placeholder="—" width="110px"
-                                               enabled="{/appState/isEditMode}"/>
+                                               enabled="{/appState/isRecipientEditable}"/>
                                     </t:template>
                                 </t:Column>
 
@@ -260,30 +260,30 @@
                                     <t:template>
                                         <Input value="{itemText}" placeholder="Item text"
                                                change="onRecipientGLLineChange" width="130px"
-                                               enabled="{/appState/isEditMode}"/>
+                                               enabled="{/appState/isRecipientEditable}"/>
                                     </t:template>
                                 </t:Column>
 
                                 <t:Column width="110px">
                                     <t:label><Label text="LineRef1"/></t:label>
-                                    <t:template><Input value="{lineRef1}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
+                                    <t:template><Input value="{lineRef1}" placeholder="—" width="100px" enabled="{/appState/isRecipientEditable}"/></t:template>
                                 </t:Column>
 
                                 <t:Column width="110px">
                                     <t:label><Label text="LineRef2"/></t:label>
-                                    <t:template><Input value="{lineRef2}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
+                                    <t:template><Input value="{lineRef2}" placeholder="—" width="100px" enabled="{/appState/isRecipientEditable}"/></t:template>
                                 </t:Column>
 
                                 <t:Column width="110px">
                                     <t:label><Label text="LineRef3"/></t:label>
-                                    <t:template><Input value="{lineRef3}" placeholder="—" width="100px" enabled="{/appState/isEditMode}"/></t:template>
+                                    <t:template><Input value="{lineRef3}" placeholder="—" width="100px" enabled="{/appState/isRecipientEditable}"/></t:template>
                                 </t:Column>
 
                                 <t:Column width="50px" hAlign="Center">
                                     <t:label><Label text=""/></t:label>
                                     <t:template>
                                         <Button icon="sap-icon://delete" type="Transparent"
-                                                visible="{= ${/appState/isEditMode} &amp;&amp; !${isSystemLine}}"
+                                                visible="{= ${/appState/isRecipientEditable} &amp;&amp; !${isSystemLine}}"
                                                 press="onDeleteRecipientLine"
                                                 tooltip="Delete line"/>
                                     </t:template>

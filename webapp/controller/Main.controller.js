@@ -209,7 +209,8 @@ sap.ui.define([
                 appState: {
                     isBusy: false,
                     isEditMode: false,
-                    isHeaderEditable: false
+                    isHeaderEditable: false,
+                    isRecipientEditable: false
                 },
 
                 referenceData: {
@@ -1222,6 +1223,7 @@ console.log("Lines for Submit:", aLines);
                         .then(function (oResult) {
                             oModel.setProperty("/appState/isBusy", false);
                             oModel.setProperty("/appState/isHeaderEditable", false);
+                            oModel.setProperty("/appState/isRecipientEditable", true);
                             oModel.setProperty("/workflow/status", Constants.WORKFLOW_STATUS.SUBMITTED);
                             oModel.setProperty("/workflow/statusState", "Success");
                             oModel.setProperty("/workflow/intercoRef", oResult.accountingdocument_temp || "POSTED");
@@ -1290,6 +1292,14 @@ console.log("Lines for Submit:", aLines);
 
         onSubmitToRecipient: function () {
             this.onSubmitWorkflow();
+        },
+
+        onPostDocument: function () {
+            MessageBox.information("Post");
+        },
+
+        onSubmitToApprove: function () {
+            MessageBox.information("Submit to Approve ");
         }
 
     });

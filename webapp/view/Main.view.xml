@@ -11,7 +11,7 @@
         <uxap:ObjectPageLayout
             id="mainPage"
             busy="{/appState/isBusy}"
-            showFooter="{/appState/isEditMode}"
+            showFooter="{= ${/appState/isHeaderEditable} || ${/appState/isRecipientEditable}}"
             alwaysShowContentHeader="false"
             upperCaseAnchorBar="false"
             enableLazyLoading="false"
@@ -44,23 +44,47 @@
 
             <uxap:footer>
                 <OverflowToolbar>
+                    <!-- Phase 1: Initiator editing (before submission) -->
                     <Button text="Delete Draft"
                             type="Negative"
                             icon="sap-icon://delete"
-                            press="onDeleteDraft"/>
+                            press="onDeleteDraft"
+                            visible="{/appState/isHeaderEditable}"/>
                     <ToolbarSpacer/>
                     <Button text="Cancel"
                             icon="sap-icon://cancel"
-                            press="onCancel"/>
+                            press="onCancel"
+                            visible="{/appState/isHeaderEditable}"/>
                     <Button text="Save as Draft (F5)"
                             icon="sap-icon://save"
                             press="onSaveDraft"
-                            class="sapUiSmallMarginBegin"/>
-                    <Button text="Submit to Recipient (F8)"
+                            class="sapUiSmallMarginBegin"
+                            visible="{/appState/isHeaderEditable}"/>
+                    <Button text="Submit to Recipient"
                             type="Emphasized"
                             icon="sap-icon://outbox"
                             press="onSubmitToRecipient"
-                            class="sapUiSmallMarginBegin"/>
+                            class="sapUiSmallMarginBegin"
+                            visible="{/appState/isHeaderEditable}"/>
+
+                    <!-- Phase 2: Recipient editing (after submission) -->
+                    <!-- <Button text="Cancel"
+                            icon="sap-icon://cancel"
+                            press="onCancel"
+                            visible="{/appState/isRecipientEditable}"/> -->
+                    <Button text="Post"
+                            type="Accept"
+                            icon="sap-icon://accept"
+                            press="onPostDocument"
+                            class="sapUiSmallMarginBegin"
+                            visible="{/appState/isRecipientEditable}"/>
+                    
+                    <Button text="Submit to Approve"
+                            type="Emphasized"
+                            icon="sap-icon://workflow-tasks"
+                            press="onSubmitToApprove"
+                            class="sapUiSmallMarginBegin"
+                            visible="{/appState/isRecipientEditable}"/>
                 </OverflowToolbar>
             </uxap:footer>
 
