@@ -483,7 +483,7 @@ sap.ui.define([], function () {
             function buildItemPayload(oLine, iSeq, sInd) {
                 return {
                     referencedocumentitem:       String(iSeq * 10),
-                    // initiator_recipient_ind:     sInd,
+                    initiator_recipient_ind:     "X",
                     documentitemtext:            (oLine.itemText        || "").slice(0, 25),
                     assignmentreference:         (oLine.assignment      || "").slice(0, 16),
                     glaccount:                   (oLine.glAccount       || "").slice(0, 10),
@@ -520,9 +520,9 @@ sap.ui.define([], function () {
             (aInitiatorLines || []).forEach(function (oLine, i) {
                 aItemPayloads.push(buildItemPayload(oLine, i + 1, "I"));
             });
-            (aRecipientLines || []).forEach(function (oLine, i) {
-                aItemPayloads.push(buildItemPayload(oLine, (aInitiatorLines || []).length + i + 1, "R"));
-            });
+            // (aRecipientLines || []).forEach(function (oLine, i) {
+            //     aItemPayloads.push(buildItemPayload(oLine, (aInitiatorLines || []).length + i + 1, "R"));
+            // });
 
             return this._fetchCsrfToken(sRoot).then(function (sToken) {
                 var oHdrs = {
