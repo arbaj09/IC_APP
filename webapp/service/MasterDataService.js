@@ -452,7 +452,7 @@ sap.ui.define([], function () {
          * @param {Array}  aLines    /initiatorLines model array
          * @returns {Promise<{accountingdocument_temp: string}>}
          */
-        submitIntercoDocument: function (oHeader, aLines) {
+        submitIntercoDocument: function (oHeader, aInitiatorLines, aRecipientLines) {
             var sRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
 
             // Convert SAP UI5 date string (MM/DD/YYYY or DD.MM.YYYY or YYYY-MM-DD) → OData Edm.Date
@@ -480,6 +480,32 @@ sap.ui.define([], function () {
                 }
             }
 
+            function buildItemPayload(oLine, iSeq, sInd) {
+                return {
+                    referencedocumentitem:       String(iSeq * 10),
+                    // initiator_recipient_ind:     sInd,
+                    documentitemtext:            (oLine.itemText        || "").slice(0, 25),
+                    assignmentreference:         (oLine.assignment      || "").slice(0, 16),
+                    glaccount:                   (oLine.glAccount       || "").slice(0, 10),
+                    business_partner:            (oLine.businessPartner || "").slice(0, 10),
+                    currencycode:                (oHeader.currency      || "USD").slice(0, 5),
+                    amountintransactioncurrency: parseFloat(oLine.amountDC) || 0,
+                    debitcreditcode:             oLine.debitCredit      || "S",
+                    profitcenter:                (oLine.profitCenter    || "").slice(0, 10),
+                    // costcenter:                  (oLine.costCenter      || "").slice(0, 10),
+                    // internalorder:               (oLine.internalOrder   || "").slice(0, 12),
+                    // wbselement:                  (oLine.wbsElement      || "").slice(0, 24),
+                    // tradingpartner:              (oLine.tradingPartner  || "").slice(0, 6),
+                    // partnerprofitcenter:         (oLine.partnerPrCtr    || "").slice(0, 10),
+                    // personnel:                   (oLine.personnel       || "").slice(0, 8),
+                    // contract:                    (oLine.contract        || "").slice(0, 10),
+                    // contracttype:                (oLine.contractType    || "").slice(0, 4)
+                    // linereference1:              (oLine.lineRef1        || "").slice(0, 12),
+                    // linereference2:              (oLine.lineRef2        || "").slice(0, 12),
+                    // linereference3:              (oLine.lineRef3        || "").slice(0, 12)
+                };
+            }
+
             var oHdrPayload = {
                 send_companycode:    (oHeader.initiatorCC   || "").slice(0, 4),
                 rec_companycode:     (oHeader.recipientCC   || "").slice(0, 4),
@@ -489,17 +515,13 @@ sap.ui.define([], function () {
                 postingdate:         toODataDate(oHeader.postingDate)
             };
 
-            var aItemPayloads = aLines.map(function (oLine, i) {
-                return {
-                    referencedocumentitem:       String((i + 1) * 10),
-                    documentitemtext:            (oLine.itemText     || "").slice(0, 25),
-                    assignmentreference:         (oLine.assignment   || "").slice(0, 16),
-                    glaccount:                   (oLine.glAccount    || "").slice(0, 10),
-                    currencycode:                (oHeader.currency   || "USD").slice(0, 5),
-                    amountintransactioncurrency: parseFloat(oLine.amountDC) || 0,
-                    debitcreditcode:             oLine.debitCredit   || "S",
-                    profitcenter:                (oLine.profitCenter || "").slice(0, 10)
-                };
+            // Combine initiator (I) and recipient (R) lines, numbered sequentially
+            var aItemPayloads = [];
+            (aInitiatorLines || []).forEach(function (oLine, i) {
+                aItemPayloads.push(buildItemPayload(oLine, i + 1, "I"));
+            });
+            (aRecipientLines || []).forEach(function (oLine, i) {
+                aItemPayloads.push(buildItemPayload(oLine, (aInitiatorLines || []).length + i + 1, "R"));
             });
 
             return this._fetchCsrfToken(sRoot).then(function (sToken) {

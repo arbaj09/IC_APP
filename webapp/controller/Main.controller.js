@@ -1214,12 +1214,14 @@ sap.ui.define([
 
                     oModel.setProperty("/appState/isBusy", true);
 
-                    var oHeader = oModel.getProperty("/headerData");
-                    var aLines  = oModel.getProperty("/initiatorLines") || [];
+                    var oHeader          = oModel.getProperty("/headerData");
+                    var aInitiatorLines  = oModel.getProperty("/initiatorLines") || [];
+                    var aRecipientLines  = oModel.getProperty("/recipientLines") || [];
                     console.log("Header for Submit:", oHeader);
-console.log("Lines for Submit:", aLines);
+                    console.log("Initiator Lines:", aInitiatorLines);
+                    console.log("Recipient Lines:", aRecipientLines);
 
-                    MasterDataService.submitIntercoDocument(oHeader, aLines)
+                    MasterDataService.submitIntercoDocument(oHeader, aInitiatorLines, aRecipientLines)
                         .then(function (oResult) {
                             oModel.setProperty("/appState/isBusy", false);
                             oModel.setProperty("/appState/isHeaderEditable", false);
