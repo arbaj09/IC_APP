@@ -203,7 +203,8 @@ sap.ui.define([
                 workflow: {
                     status: Constants.WORKFLOW_STATUS.DRAFT,
                     statusState: "Warning",
-                    intercoRef: "[NEW — assigned on save]"
+                    intercoRef: "[NEW — assigned on save]",
+                    initiatorLineCount: 0
                 },
 
                 appState: {
@@ -1229,6 +1230,7 @@ sap.ui.define([
                             oModel.setProperty("/workflow/status", Constants.WORKFLOW_STATUS.SUBMITTED);
                             oModel.setProperty("/workflow/statusState", "Success");
                             oModel.setProperty("/workflow/intercoRef", oResult.accountingdocument_temp || "POSTED");
+                            oModel.setProperty("/workflow/initiatorLineCount", aInitiatorLines.length);
                             MessageBox.success(
                                 "Intercompany document posted successfully in SAP.\n\n" +
                                 "Document reference: " + (oResult.accountingdocument_temp || "—")
@@ -1297,7 +1299,30 @@ sap.ui.define([
         },
 
         onPostDocument: function () {
-            MessageBox.information("Post");
+            var oModel           = this.getView().getModel();
+            var sDocId           = oModel.getProperty("/workflow/intercoRef");
+            var iInitiatorCount  = oModel.getProperty("/workflow/initiatorLineCount") || 0;
+            var oHeader          = oModel.getProperty("/headerData");
+            var aRecipientLines  = oModel.getProperty("/recipientLines") || [];
+
+            oModel.setProperty("/appState/isBusy", true);
+
+            MasterDataService.submitRecipientLines(sDocId, oHeader, aRecipientLines, iInitiatorCount)
+                .then(function (oResult) {
+                    oModel.setProperty("/appState/isBusy", false);
+                    oModel.setProperty("/appState/isRecipientEditable", false);
+                    oModel.setProperty("/workflow/status", "Posted");
+                    oModel.setProperty("/workflow/statusState", "Success");
+                    oModel.setProperty("/workflow/intercoRef", oResult.accountingdocument_temp || sDocId);
+                    MessageBox.success(
+                        "Intercompany document posted and activated successfully.\n\n" +
+                        "Document reference: " + (oResult.accountingdocument_temp || sDocId)
+                    );
+                })
+                .catch(function (oError) {
+                    oModel.setProperty("/appState/isBusy", false);
+                    MessageBox.error("Post failed: " + (oError && oError.message ? oError.message : String(oError)));
+                });
         },
 
         onSubmitToApprove: function () {

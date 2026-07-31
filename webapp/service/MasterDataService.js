@@ -483,7 +483,7 @@ sap.ui.define([], function () {
             function buildItemPayload(oLine, iSeq, sInd) {
                 return {
                     referencedocumentitem:       String(iSeq * 10),
-                    initiator_recipient_ind:     "X",
+                    initiator_recipient_ind:     sInd,
                     documentitemtext:            (oLine.itemText        || "").slice(0, 25),
                     assignmentreference:         (oLine.assignment      || "").slice(0, 16),
                     glaccount:                   (oLine.glAccount       || "").slice(0, 10),
@@ -507,12 +507,13 @@ sap.ui.define([], function () {
             }
 
             var oHdrPayload = {
-                send_companycode:    (oHeader.initiatorCC   || "").slice(0, 4),
+                in_companycode:    (oHeader.initiatorCC   || "").slice(0, 4),
                 rec_companycode:     (oHeader.recipientCC   || "").slice(0, 4),
                 documentreferenceid: (oHeader.reference     || "").slice(0, 16),
                 documentheadertext:  (oHeader.headerText    || "").slice(0, 25),
                 documentdate:        toODataDate(oHeader.documentDate),
-                postingdate:         toODataDate(oHeader.postingDate)
+                postingdate:         toODataDate(oHeader.postingDate),
+                accountingdocumenttype :  oHeader.documentTypeCode
             };
 
             // Combine initiator (I) and recipient (R) lines, numbered sequentially
@@ -599,43 +600,138 @@ console.log("Doc ID =", sDocId);
                 });
 
                 return pChain.then(function () {
-                    return { docId: sDocId, bActive: bActive, sKeyFrag: sKeyFrag, hdrs: oCtx.hdrs };
+                    return { accountingdocument_temp: sDocId };
                 });
 
-            }).then(function (oCtx) {
-                // ── Step 3: Activate if draft ────────────────────────────────
-                if (oCtx.bActive) {
-                    return { accountingdocument_temp: oCtx.docId };
+            });
+        },
+
+        /**
+         * Posts Recipient GL lines to an existing draft header, then activates it.
+         * Called from onPostDocument after the Initiator submit flow has completed.
+         *
+         * @param {string} sDocId            accountingdocument_temp from the earlier Submit
+         * @param {object} oHeader           /headerData model object
+         * @param {Array}  aRecipientLines   /recipientLines model array
+         * @param {number} iInitiatorCount   number of Initiator lines already posted (for sequential numbering)
+         */
+        submitRecipientLines: function (sDocId, oHeader, aRecipientLines, iInitiatorCount) {
+            var sRoot    = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+            var sKeyFrag = "ZC_INTERCO_JE_HEADER(accountingdocument_temp='" + sDocId + "',IsActiveEntity=false)";
+
+            function isSamlRedirect(oXHR) {
+                var sType = oXHR.getResponseHeader("Content-Type") || "";
+                return sType.indexOf("text/html") !== -1;
+            }
+
+            function parseError(oXHR) {
+                try {
+                    var oErr = JSON.parse(oXHR.responseText);
+                    return (oErr.error && oErr.error.message) ? oErr.error.message : oXHR.responseText;
+                } catch (e) {
+                    return oXHR.responseText || oXHR.statusText;
                 }
-                var sActivateUrl = sRoot + oCtx.sKeyFrag +
+            }
+
+            var iOffset = iInitiatorCount || 0;
+            var aItemPayloads = (aRecipientLines || []).map(function (oLine, i) {
+                return {
+                    referencedocumentitem:       String((iOffset + i + 1) * 10),
+                    initiator_recipient_ind:     "R",
+                    documentitemtext:            (oLine.itemText        || "").slice(0, 25),
+                    assignmentreference:         (oLine.assignment      || "").slice(0, 16),
+                    glaccount:                   (oLine.glAccount       || "").slice(0, 10),
+                    business_partner:            (oLine.businessPartner || "").slice(0, 10),
+                    currencycode:                (oHeader.currency      || "USD").slice(0, 5),
+                    amountintransactioncurrency: parseFloat(oLine.amountDC) || 0,
+                    debitcreditcode:             oLine.debitCredit      || "S",
+                    profitcenter:                (oLine.profitCenter    || "").slice(0, 10)
+                };
+            });
+
+            return this._fetchCsrfToken(sRoot).then(function (sToken) {
+                var oHdrs = {
+                    "Accept":           "application/json",
+                    "Content-Type":     "application/json",
+                    "OData-Version":    "4.0",
+                    "OData-MaxVersion": "4.0",
+                    "X-CSRF-Token":     sToken
+                };
+
+                // ── Step 1: Post Recipient items to draft ────────────────────
+                var pChain = Promise.resolve();
+                aItemPayloads.forEach(function (oItem) {
+                    pChain = pChain.then(function () {
+                        return new Promise(function (resolve, reject) {
+                            jQuery.ajax({
+                                url:         sRoot + sKeyFrag + "/_Item",
+                                method:      "POST",
+                                headers:     oHdrs,
+                                contentType: "application/json",
+                                data:        JSON.stringify(oItem),
+                                success:     function () { resolve(); },
+                                error:       function (oXHR) {
+                                    reject(new Error(
+                                        "Recipient item " + oItem.referencedocumentitem +
+                                        " creation failed [" + oXHR.status + "]: " + parseError(oXHR)
+                                    ));
+                                }
+                            });
+                        });
+                    });
+                });
+
+                return pChain.then(function () { return oHdrs; });
+
+            }).then(function (oHdrs) {
+                // ── Step 2: Activate the draft ───────────────────────────────
+                var sActivateUrl = sRoot + sKeyFrag +
                                    "/com.sap.gateway.srvd.zsd_interco_app.v0001.Activate";
-                    console.log("Activate URL");
-                console.log(sActivateUrl);
                 return new Promise(function (resolve, reject) {
                     jQuery.ajax({
                         url:         sActivateUrl,
                         method:      "POST",
-                        headers:     oCtx.hdrs,
+                        headers:     oHdrs,
                         contentType: "application/json",
                         data:        "{}",
                         success:     function (oData, sStatus, oXHR) {
                             if (isSamlRedirect(oXHR)) {
                                 reject(new Error(
-                                    "Session expired during document activation. " +
-                                    "The draft may remain open in SAP — check transaction FB03. " +
-                                    "Refresh the page and re-submit."
+                                    "Session expired during activation. The draft may remain open in SAP."
                                 ));
                                 return;
                             }
-                            var sDocRef = (oData && (
+                            var sActiveDocId = (oData && (
                                 oData.accountingdocument_temp ||
                                 oData.AccountingDocument      ||
                                 oData.AccountingDocumentTemp
-                            )) || oCtx.docId;
-                            resolve({ accountingdocument_temp: sDocRef });
+                            )) || sDocId;
+                            resolve({ oHdrs: oHdrs, sActiveDocId: sActiveDocId });
                         },
                         error:       function (oXHR) {
                             reject(new Error("Activation failed [" + oXHR.status + "]: " + parseError(oXHR)));
+                        }
+                    });
+                });
+
+            }).then(function (oCtx) {
+                // ── Step 3: PostJournalEntry on the active entity ─────────────
+                var sActiveKey  = "ZC_INTERCO_JE_HEADER(accountingdocument_temp='" +
+                                  oCtx.sActiveDocId + "',IsActiveEntity=true)";
+                var sActionUrl  = sRoot + sActiveKey +
+                                  "/com.sap.gateway.srvd.zsd_interco_app.v0001.PostJournalEntry";
+                return new Promise(function (resolve, reject) {
+                    jQuery.ajax({
+                        url:         sActionUrl,
+                        method:      "POST",
+                        headers:     oCtx.oHdrs,
+                        contentType: "application/json",
+                        data:        "{}",
+                        success:     function (oData) {
+                            resolve({ accountingdocument_temp: oCtx.sActiveDocId, result: oData });
+                        },
+                        error:       function (oXHR) {
+                            reject(new Error("PostJournalEntry failed [" + oXHR.status + "]: " + parseError(oXHR)));
                         }
                     });
                 });
