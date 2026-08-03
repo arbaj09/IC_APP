@@ -12,14 +12,14 @@
         growing="true"
         growingThreshold="50"
         items="{
-            path: '/bpPicklistSource',
+            path: '/referenceData/bpRelationships',
             templateShareable: false
         }">
 
         <StandardListItem
-            title="{bpName}"
-            description="{= 'BP: ' + ${bp} + '   |   Recipient CC: ' + ${cc}}"
-            info="{ccName}"
+            title="{bpForDebit}"
+            description="{= 'Sender: ' + ${senderCC} + '  →  Receiver: ' + ${receiverCC}}"
+            info="{receiverCCName}"
             infoState="None"
             icon="sap-icon://business-partner"
             iconInset="false"

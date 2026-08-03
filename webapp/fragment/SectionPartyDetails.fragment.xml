@@ -54,45 +54,45 @@
                     </f:SimpleForm>
                 </VBox>
 
-                <!-- Recipient Section -->
+                <!-- Recipient Section — BP first, CC derived from BP -->
                 <VBox id="vboxRecipient">
                     <Title id="titleRecipient" text="Recipient" level="H5" class="sapUiSmallMarginBottom"/>
-                    <f:SimpleForm 
+                    <f:SimpleForm
                         id="formRecipient"
-                        editable="true" 
+                        editable="true"
                         layout="ResponsiveGridLayout"
                         labelSpanL="5" labelSpanM="5"
                         columnsL="1" columnsM="1">
                         <f:content>
+                            <Label text="Business Partner" required="true"/>
+                            <Input
+                                id="inpRecipientBP"
+                                value="{/headerData/recipientBP}"
+                                change="onRecipientBPChange"
+                                editable="{/appState/isHeaderEditable}"
+                                showValueHelp="{/appState/isHeaderEditable}"
+                                valueHelpRequest="onRecipientBPValueHelp"
+                                maxLength="10"
+                                width="200px"
+                                placeholder="e.g. IC100600"/>
+
                             <Label text="Company Code" required="true"/>
                             <HBox id="hboxRecipientCC">
                                 <Input
                                     id="recCCInput"
                                     value="{/headerData/recipientCC}"
-                                    change="onRecipientCCChange"
-                                    editable="{/appState/isHeaderEditable}"
-                                    showValueHelp="{/appState/isHeaderEditable}"
-                                    valueHelpRequest="onRecipientCCValueHelp"
-                                    maxLength="4"
+                                    editable="false"
                                     width="120px"
-                                    placeholder="e.g. R111"/>
-                                <ObjectStatus 
+                                    placeholder="— derived from BP"/>
+                                <ObjectStatus
                                     id="stRecipientCCName"
                                     text="{/headerData/recipientCCName}"
                                     state="None"
                                     class="sapUiSmallMarginBegin"/>
                             </HBox>
 
-                            <Label text="Business Partner" required="true"/>
-                            <Input 
-                                id="inpRecipientBP"
-                                value="{/headerData/recipientBP}"
-                                placeholder="— derived from CC selection"
-                                editable="false"
-                                width="200px"/>
-
                             <Label text="Country"/>
-                            <Text 
+                            <Text
                                 id="txtRecipientCountry"
                                 text="{/headerData/recipientCountry}"
                                 renderWhitespace="false"/>

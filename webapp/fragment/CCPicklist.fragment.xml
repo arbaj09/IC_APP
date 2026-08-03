@@ -12,7 +12,7 @@
         growing="true"
         growingThreshold="50"
         items="{
-            path: '/referenceData/companyCodes',
+            path: '/referenceData/initiatorCCOptions',
             templateShareable: false
         }">
 

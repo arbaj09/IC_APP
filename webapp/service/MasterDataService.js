@@ -1,65 +1,6 @@
 sap.ui.define([], function () {
     "use strict";
 
-    // ── Private mock data ────────────────────────────────────────────────────
-    // These arrays will be replaced by OData V4 entity-set reads when the RAP
-    // back-end is available. The public interface (Promise-based methods below)
-    // stays identical — only this section changes.
-
-    // Company codes aligned with real SAP S/4HANA tenant (my406980).
-    var _aCodes = [
-        { companyCode: "1110", name: "Madiba Holdings (Pty) Ltd",   country: "US" },
-        { companyCode: "1002", name: "Madiba Africa Ltd",            country: "GB" },
-        { companyCode: "1006", name: "Madiba East Africa (T) Ltd",   country: "US" },
-        { companyCode: "1150", name: "Madiba West Ltd",              country: "GB" },
-        { companyCode: "1177", name: "Madiba North Ltd",             country: "US" },
-        { companyCode: "1337", name: "Madiba Southern Ltd",          country: "GB" },
-        { companyCode: "1488", name: "Madiba Investments Ltd",       country: "US" },
-        { companyCode: "1790", name: "Madiba Services Ltd",          country: "GB" }
-    ];
-
-    // T001U intercompany relationships.
-    // bp = SAP Customer number of the RECIPIENT entity in the INITIATOR's company books.
-    //      This is what is passed as "Customer" in the I_CustomerCompany OData V4 filter.
-    // konts = display label for the reverse / initiator BP field (informational only).
-    //
-    // Real customer numbers sourced from I_CustomerCompany API response:
-    //   1110 / Customer 1000061 → ReconciliationAccount 12100000
-    //   1110 / Customer 1        → ReconciliationAccount 12100000
-    //   1002 / Customer 1000050 → ReconciliationAccount 121500
-    //   1002 / Customer 1000000 → ReconciliationAccount 121500
-    //   1006 / Customer 1000050 → ReconciliationAccount 12100000
-    var _aRelationships = [
-        // 1110 (ZA) → subsidiaries
-        // bp    = Customer number of recipient in initiator's books (passed to I_CustomerCompany)
-        // konts = Reconciliation account (KNBK-AKONT) — used as GL Account fallback when API is unavailable
-        { vbukr: "1110", abukr: "1002", bp: "1000061", konts: "12100000", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "1110", abukr: "1006", bp: "1",       konts: "12100000", bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "1110", abukr: "1150", bp: "1000062", konts: "12100000", bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "1110", abukr: "1177", bp: "1000063", konts: "12100000", bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "1110", abukr: "1337", bp: "1000064", konts: "12100000", bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "1110", abukr: "1488", bp: "1000065", konts: "12100000", bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "1110", abukr: "1790", bp: "1000066", konts: "12100000", bschs: "01", name: "Madiba Services Ltd" },
-
-        // Subsidiaries → 1110
-        { vbukr: "1002", abukr: "1110", bp: "1000000", konts: "121500",   bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "1006", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "1150", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "1177", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "1337", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "1488", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-        { vbukr: "1790", abukr: "1110", bp: "1000050", konts: "12100000", bschs: "01", name: "Madiba Holdings (Pty) Ltd" },
-
-        // Cross-subsidiary relationships
-        { vbukr: "1002", abukr: "1006", bp: "1000050", konts: "121500",   bschs: "01", name: "Madiba East Africa (T) Ltd" },
-        { vbukr: "1006", abukr: "1002", bp: "1000000", konts: "12100000", bschs: "01", name: "Madiba Africa Ltd" },
-        { vbukr: "1002", abukr: "1150", bp: "1000070", konts: "121500",   bschs: "01", name: "Madiba West Ltd" },
-        { vbukr: "1002", abukr: "1177", bp: "1000071", konts: "121500",   bschs: "01", name: "Madiba North Ltd" },
-        { vbukr: "1002", abukr: "1337", bp: "1000072", konts: "121500",   bschs: "01", name: "Madiba Southern Ltd" },
-        { vbukr: "1002", abukr: "1488", bp: "1000073", konts: "121500",   bschs: "01", name: "Madiba Investments Ltd" },
-        { vbukr: "1002", abukr: "1790", bp: "1000074", konts: "121500",   bschs: "01", name: "Madiba Services Ltd" }
-    ];
-
     var _aTaxCodes = [
         { code: "",    description: "No Tax",              rate: 0    },
         { code: "A0",  description: "Output Tax Exempt",   rate: 0    },
@@ -73,13 +14,6 @@ sap.ui.define([], function () {
     var _aClosedPeriods = ["01/2024", "02/2024"]; // simulated closed FI periods
     var _aTaxCodesCache = null; // cache for ZC_RETRIEVE_TAXCODE full list
 
-    // ── Helper ───────────────────────────────────────────────────────────────
-
-    function _ccName(sCC) {
-        var oCode = _aCodes.find(function (c) { return c.companyCode === sCC; });
-        return oCode ? oCode.name : sCC;
-    }
-
     // ── Public service interface ─────────────────────────────────────────────
     // Every method returns a Promise. When OData is wired, replace
     // Promise.resolve(...) with ODataModel.bindList(...).requestContexts().
@@ -88,61 +22,40 @@ sap.ui.define([], function () {
     return {
 
         /**
-         * Returns all known company codes.
-         * OData future: GET /CompanyCodes
+         * Fetches name, country, and currency for a single company code.
+         * Called on-demand when the user selects or enters a company code.
          *
-         * @returns {Promise<Array<{companyCode: string, name: string, country: string}>>}
+         * @param {string} sCC  Company code (e.g. "1110")
+         * @returns {Promise<{companyCode, name, country, currency} | null>}
          */
-        getCompanyCodes: function () {
-            return Promise.resolve(_aCodes.slice());
-        },
-
-        /**
-         * Returns intercompany business partners for the specific initiator/recipient CC pair,
-         * filtered by transaction type (AR/AP/Accrual determines the posting key schema).
-         * OData future: GET /IntercoRelationships?$filter=InitiatorCC eq '{sInitiatorCC}'
-         *               and RecipientCC eq '{sRecipientCC}'
-         *
-         * @param {string} sInitiatorCC  Initiator company code
-         * @param {string} sRecipientCC  Recipient company code
-         * @param {string} sTxType       "AR" | "AP" | "Accrual"
-         * @returns {Promise<Array<{bp: string, bpName: string, cc: string, ccName: string}>>}
-         */
-        getBusinessPartners: function (sInitiatorCC, sRecipientCC, sTxType) {
-            var sBschs = sTxType === "AP" ? "31" : "01";
-            var aRows = _aRelationships
-                .filter(function (r) {
-                    return r.vbukr === sInitiatorCC &&
-                           r.abukr === sRecipientCC &&
-                           (sTxType === "Accrual" || r.bschs === sBschs);
-                })
-                .map(function (r) {
-                    return {
-                        bp:     r.bp,
-                        konts:  r.konts,
-                        bpName: r.name,
-                        cc:     r.abukr,
-                        ccName: _ccName(r.abukr)
-                    };
+        getCompanyCodeDetails: function (sCC) {
+            if (!sCC) { return Promise.resolve(null); }
+            return new Promise(function (resolve, reject) {
+                jQuery.ajax({
+                    url: "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/I_CompanyCode",
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json",
+                        "OData-Version": "4.0",
+                        "OData-MaxVersion": "4.0"
+                    },
+                    data: { "$filter": "CompanyCode eq '" + sCC + "'", "$top": "1" },
+                    success: function (oData) {
+                        var aResults = (oData && oData.value) || [];
+                        if (!aResults.length) { resolve(null); return; }
+                        var cc = aResults[0];
+                        resolve({
+                            companyCode: cc.CompanyCode,
+                            name:        cc.CompanyCodeName,
+                            country:     cc.Country,
+                            currency:    cc.Currency
+                        });
+                    },
+                    error: function (oXHR, sStatus, sError) {
+                        reject(new Error("Failed to fetch company code " + sCC + " [" + oXHR.status + "]: " + sError));
+                    }
                 });
-            return Promise.resolve(aRows);
-        },
-
-        /**
-         * Returns the single reverse intercompany relationship (recipient-as-initiator),
-         * used to derive the initiator's BP (clearing account) after F4 selection.
-         * OData future: GET /IntercoRelationships?$filter=InitiatorCC eq '{sRecipientCC}'
-         *               and RecipientCC eq '{sInitiatorCC}'&$top=1
-         *
-         * @param {string} sRecipientCC  The selected recipient company code
-         * @param {string} sInitiatorCC  The current initiator company code
-         * @returns {Promise<{konts: string, name: string} | null>}
-         */
-        getReverseBP: function (sRecipientCC, sInitiatorCC) {
-            var oMatch = _aRelationships.find(function (r) {
-                return r.vbukr === sRecipientCC && r.abukr === sInitiatorCC;
             });
-            return Promise.resolve(oMatch || null);
         },
 
         /**
@@ -406,6 +319,49 @@ sap.ui.define([], function () {
             });
         },
 
+        /**
+         * Fetches intercompany relationship records from YY1_ICT001U (OData V2).
+         * Pass at least one filter key: senderCC, receiverCC, or bpDebit.
+         *
+         * @param {object} params  { senderCC, receiverCC, bpDebit }
+         * @returns {Promise<Array<{senderCC, receiverCC, bpForDebit, bpForCredit, debitKey, creditKey}>>}
+         */
+        getICT001URelationship: function (params) {
+            var sRoot = "/sap/opu/odata/sap/YY1_ICT001U_CDS/YY1_ICT001U";
+            var aFilters = [];
+            if (params.senderCC)   { aFilters.push("SenderCompanyCode eq '" + params.senderCC  + "'"); }
+            if (params.receiverCC) { aFilters.push("ReciverCompanyCode eq '" + params.receiverCC + "'"); }
+            if (params.bpDebit)    { aFilters.push("BPforDebitClearing eq '" + params.bpDebit   + "'"); }
+
+            var oQueryParams = { "$format": "json" };
+            if (aFilters.length) { oQueryParams["$filter"] = aFilters.join(" and "); }
+
+            return new Promise(function (resolve, reject) {
+                jQuery.ajax({
+                    url:    sRoot,
+                    method: "GET",
+                    data:   oQueryParams,
+                    headers: { "Accept": "application/json" },
+                    success: function (oData) {
+                        var aResults = (oData && oData.d && oData.d.results) || [];
+                        resolve(aResults.map(function (r) {
+                            return {
+                                senderCC:   r.SenderCompanyCode,
+                                receiverCC: r.ReciverCompanyCode,
+                                bpForDebit: r.BPforDebitClearing,
+                                bpForCredit: r.BPforCreditClearing,
+                                debitKey:   r.DebitPostingKey,
+                                creditKey:  r.CreditPostingKey
+                            };
+                        }));
+                    },
+                    error: function (oXHR, sStatus, sError) {
+                        reject(new Error("YY1_ICT001U lookup failed [" + oXHR.status + "]: " + sError));
+                    }
+                });
+            });
+        },
+
         // ── Internal: fetch CSRF token required for mutating OData V4 requests ─
         _fetchCsrfToken: function (sRoot) {
             return new Promise(function (resolve, reject) {
@@ -504,6 +460,8 @@ sap.ui.define([], function () {
                     // linereference2:              (oLine.lineRef2        || "").slice(0, 12),
                     // linereference3:              (oLine.lineRef3        || "").slice(0, 12)
                 };
+
+                
             }
 
             var oHdrPayload = {
@@ -627,10 +585,37 @@ console.log("Doc ID =", sDocId);
             function parseError(oXHR) {
                 try {
                     var oErr = JSON.parse(oXHR.responseText);
-                    return (oErr.error && oErr.error.message) ? oErr.error.message : oXHR.responseText;
+                    if (!oErr || !oErr.error) { return oXHR.responseText || oXHR.statusText; }
+
+                    var sMsgs = oErr.error.message || "";
+
+                    // OData V4 standard detail array
+                    var aDetails = oErr.error.details || [];
+                    if (aDetails.length) {
+                        sMsgs += "\n\n" + aDetails.map(function (d) {
+                            var sSev = d["@SAP.Severity"] || d.code || "";
+                            return "• " + (sSev ? "[" + sSev + "] " : "") + d.message;
+                        }).join("\n");
+                    }
+
+                    // SAP inner error details
+                    var aInner = (oErr.error.innererror && oErr.error.innererror.errordetails) || [];
+                    aInner.forEach(function (d) {
+                        if (d.message && aDetails.every(function (x) { return x.message !== d.message; })) {
+                            sMsgs += "\n• " + d.message;
+                        }
+                    });
+
+                    return sMsgs || oXHR.statusText;
                 } catch (e) {
                     return oXHR.responseText || oXHR.statusText;
                 }
+            }
+
+            // Strip "—" placeholder values so they are not sent to the backend
+            function sanitize(sVal, iMax) {
+                var s = (!sVal || sVal === "—") ? "" : String(sVal);
+                return iMax ? s.slice(0, iMax) : s;
             }
 
             var iOffset = iInitiatorCount || 0;
@@ -638,14 +623,14 @@ console.log("Doc ID =", sDocId);
                 return {
                     referencedocumentitem:       String((iOffset + i + 1) * 10),
                     initiator_recipient_ind:     "R",
-                    documentitemtext:            (oLine.itemText        || "").slice(0, 25),
-                    assignmentreference:         (oLine.assignment      || "").slice(0, 16),
-                    glaccount:                   (oLine.glAccount       || "").slice(0, 10),
-                    business_partner:            (oLine.businessPartner || "").slice(0, 10),
-                    currencycode:                (oHeader.currency      || "USD").slice(0, 5),
+                    documentitemtext:            sanitize(oLine.itemText,        25),
+                    assignmentreference:         sanitize(oLine.assignment,      16),
+                    glaccount:                   sanitize(oLine.glAccount,       10),
+                    business_partner:            sanitize(oLine.businessPartner, 10),
+                    currencycode:                (oHeader.currency || "USD").slice(0, 5),
                     amountintransactioncurrency: parseFloat(oLine.amountDC) || 0,
-                    debitcreditcode:             oLine.debitCredit      || "S",
-                    profitcenter:                (oLine.profitCenter    || "").slice(0, 10)
+                    debitcreditcode:             oLine.debitCredit || "S",
+                    profitcenter:                sanitize(oLine.profitCenter,    10)
                 };
             });
 
@@ -727,7 +712,26 @@ console.log("Doc ID =", sDocId);
                         headers:     oCtx.oHdrs,
                         contentType: "application/json",
                         data:        "{}",
-                        success:     function (oData) {
+                        success:     function (oData, sStatus, oXHR) {
+                            // Check SAP-Messages header for error-severity messages returned on 200 OK
+                            var sSAPMsgs = oXHR.getResponseHeader("SAP-Messages");
+                            if (sSAPMsgs) {
+                                try {
+                                    var aMsgs = JSON.parse(sSAPMsgs);
+                                    var aErrors = aMsgs.filter(function (m) {
+                                        return m.numericSeverity >= 3 || m.severity === "error";
+                                    });
+                                    if (aErrors.length) {
+                                        reject(new Error(
+                                            "PostJournalEntry returned errors:\n" +
+                                            aErrors.map(function (m) {
+                                                return "• " + (m.longText || m.message || JSON.stringify(m));
+                                            }).join("\n")
+                                        ));
+                                        return;
+                                    }
+                                } catch (e) { /* ignore malformed header */ }
+                            }
                             resolve({ accountingdocument_temp: oCtx.sActiveDocId, result: oData });
                         },
                         error:       function (oXHR) {

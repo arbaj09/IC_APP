@@ -29,6 +29,7 @@ sap.ui.define([
             this._pCCDialog = null;
             this._sCCPicklistMode = "";
             this._pDocTypeDialog = null;
+            this._pBPDialog = null;
             this._initModel();
             this._loadReferenceData();
         },
@@ -36,8 +37,15 @@ sap.ui.define([
         _loadReferenceData: function () {
             var oModel = this.getView().getModel();
             var that = this;
-            MasterDataService.getCompanyCodes().then(function (aCodes) {
-                oModel.setProperty("/referenceData/companyCodes", aCodes);
+            // Fetch details for the default initiator CC on startup (targeted single-CC call)
+            var sDefaultCC = oModel.getProperty("/headerData/initiatorCC") || Constants.DEFAULT.INITIATOR_CC;
+            MasterDataService.getCompanyCodeDetails(sDefaultCC).then(function (oCC) {
+                if (oCC) {
+                    oModel.setProperty("/headerData/initiatorCCName",  oCC.name);
+                    oModel.setProperty("/headerData/initiatorCountry", oCC.country);
+                }
+                that._loadUserDefaultCC();
+            }).catch(function () {
                 that._loadUserDefaultCC();
             });
 
@@ -57,10 +65,6 @@ sap.ui.define([
             });
         },
 
-        _resolveCC: function (sCC) {
-            var aCodes = this.getView().getModel().getProperty("/referenceData/companyCodes") || [];
-            return aCodes.find(function (c) { return c.companyCode === sCC; }) || null;
-        },
 
         _initModel: function () {
             _rowCounter = 1;
@@ -68,8 +72,8 @@ sap.ui.define([
                 headerData: {
                     transactionType: Constants.TRANSACTION_TYPE.AR,
                     transactionTypeIndex: 0,
-                    documentType: this.getI18nText("documentType." + Constants.DOCUMENT_TYPE.IC),
-                    documentTypeCode: "IC", // Set initial default document type code
+                    documentType: this.getI18nText("documentType." + Constants.DOCUMENT_TYPE.SA),
+                    documentTypeCode: "SA", // Set initial default document type code
                     taxInvoiceRequired: false,
                     taxInvoiceNumber: "",
                     taxInvoiceDate: "",
@@ -77,7 +81,7 @@ sap.ui.define([
                     taxVATTreatment: Constants.DEFAULT.VAT_TREATMENT,
 
                     initiatorCC: Constants.DEFAULT.INITIATOR_CC,
-                    initiatorCCName: "Madiba Holdings (Pty) Ltd",  // resolved from _aCodes on load
+                    initiatorCCName: "",
                     initiatorBP: "",
                     recipientBP: "",
                     recipientBPName: "",
@@ -107,7 +111,7 @@ sap.ui.define([
 
                     initiatorTaxCode: "",
                     initiatorTaxAmount: "0.00",
-                    initiatorCountry: "ZA (T001-LAND1 for 1110)",
+                    initiatorCountry: "",
                     initiatorTaxCodeState: "None",
                     recipientTaxCode: "",
                     recipientTaxAmount: "0.00",
@@ -291,11 +295,15 @@ sap.ui.define([
 
                     sCC = sCC.trim().toUpperCase();
                     oModel.setProperty("/headerData/initiatorCC", sCC);
-                    var oCC = this._resolveCC(sCC);
-                    oModel.setProperty("/headerData/initiatorCCName",
-                        oCC ? oCC.name : "— Unknown company code");
-                    oModel.setProperty("/headerData/initiatorCountry",
-                        oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
+                    MasterDataService.getCompanyCodeDetails(sCC).then(function (oCC) {
+                        oModel.setProperty("/headerData/initiatorCCName",
+                            oCC ? oCC.name : "— Unknown company code");
+                        oModel.setProperty("/headerData/initiatorCountry",
+                            oCC ? oCC.country : "—");
+                    }).catch(function () {
+                        oModel.setProperty("/headerData/initiatorCCName",  "— Unknown company code");
+                        oModel.setProperty("/headerData/initiatorCountry", "—");
+                    });
                 }.bind(this)
             });
         },
@@ -306,33 +314,16 @@ sap.ui.define([
 
         onInitiatorCCChange: function () {
             var oModel = this.getView().getModel();
+            var that   = this;
             var sCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
-            oModel.setProperty("/headerData/initiatorCC", sCC);
-            var oCC = this._resolveCC(sCC);
-            oModel.setProperty("/headerData/initiatorCCName", oCC ? oCC.name : (sCC ? "— Unknown company code" : ""));
-            oModel.setProperty("/headerData/initiatorCountry",
-                oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
-
+            oModel.setProperty("/headerData/initiatorCC",      sCC);
+            oModel.setProperty("/headerData/initiatorCCName",  sCC ? "..." : "");
+            oModel.setProperty("/headerData/initiatorCountry", "");
             oModel.setProperty("/headerData/initiatorTaxCode", "");
             oModel.setProperty("/referenceData/initiatorTaxCodes", []);
-            if (oCC && oCC.country) {
-                var sIniCountry = oCC.country;
-                var aAllIni = oModel.getProperty("/referenceData/allTaxCodes") || [];
-                if (aAllIni.length > 0) {
-                    oModel.setProperty("/referenceData/initiatorTaxCodes",
-                        aAllIni.filter(function (t) { return t.country === sIniCountry; }));
-                } else {
-                    MasterDataService.getAllTaxCodes().then(function (aAll) {
-                        oModel.setProperty("/referenceData/allTaxCodes", aAll);
-                        oModel.setProperty("/referenceData/initiatorTaxCodes",
-                            aAll.filter(function (t) { return t.country === sIniCountry; }));
-                    });
-                }
-            }
-
-            oModel.setProperty("/headerData/initiatorBP", "");
-            oModel.setProperty("/headerData/recipientBP", "");
-            oModel.setProperty("/headerData/recipientBPName", "");
+            oModel.setProperty("/headerData/initiatorBP",       "");
+            oModel.setProperty("/headerData/recipientBP",       "");
+            oModel.setProperty("/headerData/recipientBPName",   "");
             oModel.setProperty("/headerData/partyValidationVisible", false);
 
             this._propagateTradingPartner();
@@ -341,64 +332,235 @@ sap.ui.define([
             this._syncRecipientBPClearingLine();
             this._validateParties();
 
-            var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
-            if (sCC && sRecCC) {
-                this._autoDeriveBPs(sRecCC, sCC);
-            }
+            if (!sCC) { return; }
+
+            MasterDataService.getCompanyCodeDetails(sCC).then(function (oCC) {
+                oModel.setProperty("/headerData/initiatorCCName",  oCC ? oCC.name    : "— Unknown company code");
+                oModel.setProperty("/headerData/initiatorCountry", oCC ? oCC.country : "—");
+
+                if (oCC && oCC.country) {
+                    var aAll = oModel.getProperty("/referenceData/allTaxCodes") || [];
+                    if (aAll.length) {
+                        oModel.setProperty("/referenceData/initiatorTaxCodes",
+                            aAll.filter(function (t) { return t.country === oCC.country; }));
+                    } else {
+                        MasterDataService.getAllTaxCodes().then(function (aFetched) {
+                            oModel.setProperty("/referenceData/allTaxCodes", aFetched);
+                            oModel.setProperty("/referenceData/initiatorTaxCodes",
+                                aFetched.filter(function (t) { return t.country === oCC.country; }));
+                        });
+                    }
+                }
+
+                var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
+                if (sRecCC) { that._autoDeriveBPs(sRecCC, sCC); }
+            }).catch(function () {
+                oModel.setProperty("/headerData/initiatorCCName",  "— Unknown company code");
+                oModel.setProperty("/headerData/initiatorCountry", "—");
+            });
         },
 
         onRecipientCCChange: function () {
             var oModel = this.getView().getModel();
+            var that   = this;
             var sCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
-            oModel.setProperty("/headerData/recipientCC", sCC);
-            var oCC = this._resolveCC(sCC);
-            oModel.setProperty("/headerData/recipientCCName", oCC ? oCC.name : (sCC ? "— Unknown company code" : ""));
-            oModel.setProperty("/headerData/recipientCountry",
-                oCC ? oCC.country + " (T001-LAND1 for " + sCC + ")" : "—");
-
+            oModel.setProperty("/headerData/recipientCC",      sCC);
+            oModel.setProperty("/headerData/recipientCCName",  sCC ? "..." : "");
+            oModel.setProperty("/headerData/recipientCountry", "");
             oModel.setProperty("/headerData/recipientTaxCode", "");
             oModel.setProperty("/referenceData/recipientTaxCodes", []);
-            if (oCC && oCC.country) {
-                var sRecCountry = oCC.country;
-                var aAllRec = oModel.getProperty("/referenceData/allTaxCodes") || [];
-                if (aAllRec.length > 0) {
-                    oModel.setProperty("/referenceData/recipientTaxCodes",
-                        aAllRec.filter(function (t) { return t.country === sRecCountry; }));
-                } else {
-                    MasterDataService.getAllTaxCodes().then(function (aAll) {
-                        oModel.setProperty("/referenceData/allTaxCodes", aAll);
-                        oModel.setProperty("/referenceData/recipientTaxCodes",
-                            aAll.filter(function (t) { return t.country === sRecCountry; }));
-                    });
-                }
-            }
-
-            oModel.setProperty("/headerData/recipientBP", "");
-            oModel.setProperty("/headerData/recipientBPName", "");
-            oModel.setProperty("/headerData/initiatorBP", "");
+            oModel.setProperty("/headerData/recipientBP",      "");
+            oModel.setProperty("/headerData/recipientBPName",  "");
+            oModel.setProperty("/headerData/initiatorBP",      "");
             this._propagateTradingPartner();
             this._validateParties();
 
-            var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
-            if (sIniCC && sCC) {
-                this._autoDeriveBPs(sCC, sIniCC);
+            if (!sCC) { return; }
+
+            MasterDataService.getCompanyCodeDetails(sCC).then(function (oCC) {
+                oModel.setProperty("/headerData/recipientCCName",  oCC ? oCC.name    : "— Unknown company code");
+                oModel.setProperty("/headerData/recipientCountry", oCC ? oCC.country : "—");
+
+                if (oCC && oCC.country) {
+                    var aAll = oModel.getProperty("/referenceData/allTaxCodes") || [];
+                    if (aAll.length) {
+                        oModel.setProperty("/referenceData/recipientTaxCodes",
+                            aAll.filter(function (t) { return t.country === oCC.country; }));
+                    } else {
+                        MasterDataService.getAllTaxCodes().then(function (aFetched) {
+                            oModel.setProperty("/referenceData/allTaxCodes", aFetched);
+                            oModel.setProperty("/referenceData/recipientTaxCodes",
+                                aFetched.filter(function (t) { return t.country === oCC.country; }));
+                        });
+                    }
+                }
+
+                var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
+                if (sIniCC) { that._autoDeriveBPs(sCC, sIniCC); }
+            }).catch(function () {
+                oModel.setProperty("/headerData/recipientCCName",  "— Unknown company code");
+                oModel.setProperty("/headerData/recipientCountry", "—");
+            });
+        },
+
+        // ── Recipient: BP entered → derive CC from YY1_ICT001U ───────────────
+        onRecipientBPChange: function () {
+            var oModel = this.getView().getModel();
+            var sBP = (oModel.getProperty("/headerData/recipientBP") || "").trim();
+            oModel.setProperty("/headerData/recipientBP", sBP);
+
+            if (!sBP) {
+                oModel.setProperty("/headerData/recipientCC", "");
+                oModel.setProperty("/headerData/recipientCCName", "");
+                oModel.setProperty("/headerData/recipientCountry", "— (derived from Recipient BP)");
+                this._syncBPClearingLine();
+                this._syncRecipientBPClearingLine();
+                return;
             }
+
+            var that = this;
+            oModel.setProperty("/appState/isBusy", true);
+
+            MasterDataService.getICT001URelationship({ bpDebit: sBP })
+                .then(function (aResults) {
+                    oModel.setProperty("/appState/isBusy", false);
+                    if (!aResults.length) {
+                        MessageToast.show("No intercompany relationship found for Business Partner: " + sBP);
+                        return;
+                    }
+                    var oRel   = aResults[0];
+                    var sRecCC = oRel.receiverCC;
+
+                    oModel.setProperty("/headerData/recipientCC",      sRecCC);
+                    oModel.setProperty("/headerData/recipientCCName",  sRecCC);
+                    oModel.setProperty("/headerData/recipientCountry", "");
+                    oModel.setProperty("/headerData/recipientTaxCode", "");
+                    oModel.setProperty("/referenceData/recipientTaxCodes", []);
+
+                    // Fetch CC name and country for the derived recipient CC
+                    MasterDataService.getCompanyCodeDetails(sRecCC).then(function (oCC) {
+                        oModel.setProperty("/headerData/recipientCCName",  oCC ? oCC.name    : sRecCC);
+                        oModel.setProperty("/headerData/recipientCountry", oCC ? oCC.country : "—");
+                        if (oCC && oCC.country) {
+                            var aAll = oModel.getProperty("/referenceData/allTaxCodes") || [];
+                            if (aAll.length) {
+                                oModel.setProperty("/referenceData/recipientTaxCodes",
+                                    aAll.filter(function (t) { return t.country === oCC.country; }));
+                            }
+                        }
+                    }).catch(function () {
+                        oModel.setProperty("/headerData/recipientCCName",  sRecCC);
+                        oModel.setProperty("/headerData/recipientCountry", "—");
+                    });
+
+                    var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim();
+                    if (sIniCC && sRecCC) {
+                        that._autoDeriveBPs(sRecCC, sIniCC);
+                    } else {
+                        that._syncBPClearingLine();
+                        that._syncRecipientBPClearingLine();
+                        that._validateParties();
+                    }
+                })
+                .catch(function () {
+                    oModel.setProperty("/appState/isBusy", false);
+                    MessageToast.show("Failed to look up Business Partner: " + sBP);
+                });
+        },
+
+        // ─── Recipient BP Value Help ───────────────────────────────────────────
+
+        onRecipientBPValueHelp: function () {
+            var oModel = this.getView().getModel();
+            var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim();
+            var oView  = this.getView();
+            var that   = this;
+
+            oModel.setProperty("/appState/isBusy", true);
+
+            var oParams = sIniCC ? { senderCC: sIniCC } : {};
+
+            MasterDataService.getICT001URelationship(oParams)
+                .then(function (aResults) {
+                    oModel.setProperty("/appState/isBusy", false);
+
+                    if (!aResults.length) {
+                        MessageToast.show("No intercompany business partners found" +
+                            (sIniCC ? " for initiator " + sIniCC : "") + ".");
+                        return;
+                    }
+
+                    // Use CC code as the info column (name fetched when CC is confirmed)
+                    aResults.forEach(function (oRel) {
+                        oRel.receiverCCName = oRel.receiverCC;
+                    });
+                    oModel.setProperty("/referenceData/bpRelationships", aResults);
+
+                    if (!that._pBPDialog) {
+                        that._pBPDialog = Fragment.load({
+                            id:         oView.getId() + "--bp",
+                            name:       "ZFI_INTERCO.fragment.BPPicklist",
+                            controller: that
+                        }).then(function (oDialog) {
+                            oView.addDependent(oDialog);
+                            return oDialog;
+                        });
+                    }
+                    that._pBPDialog.then(function (oDialog) {
+                        oDialog.getBinding("items").filter([]);
+                        oDialog.open();
+                    });
+                })
+                .catch(function () {
+                    oModel.setProperty("/appState/isBusy", false);
+                    MessageToast.show("Failed to load Business Partners.");
+                });
+        },
+
+        onBPPicklistSearch: function (oEvent) {
+            var sQuery   = oEvent.getParameter("value");
+            var oBinding = oEvent.getParameter("itemsBinding");
+            if (!sQuery) {
+                oBinding.filter([]);
+                return;
+            }
+            oBinding.filter([new Filter({
+                filters: [
+                    new Filter("bpForDebit",  FilterOperator.Contains, sQuery),
+                    new Filter("senderCC",    FilterOperator.Contains, sQuery),
+                    new Filter("receiverCC",  FilterOperator.Contains, sQuery),
+                    new Filter("receiverCCName", FilterOperator.Contains, sQuery)
+                ],
+                and: false
+            })]);
+        },
+
+        onBPPicklistConfirm: function (oEvent) {
+            var oSelected = oEvent.getParameter("selectedItem");
+            if (!oSelected) { return; }
+            var oRel  = oSelected.getBindingContext().getObject();
+            var oModel = this.getView().getModel();
+            oModel.setProperty("/headerData/recipientBP", oRel.bpForDebit);
+            this.onRecipientBPChange();
+        },
+
+        onBPPicklistCancel: function () {
+            // SelectDialog self-closes
         },
 
         _autoDeriveBPs: function (sRecCC, sIniCC) {
             var oModel = this.getView().getModel();
-            var sTxType = oModel.getProperty("/headerData/transactionType");
             var that = this;
 
             oModel.setProperty("/appState/isBusy", true);
 
-            // Stage 1: Derive forward BP (Customer) and reverse BP in parallel.
+            // Fetch forward (IniCC→RecCC) and reverse (RecCC→IniCC) from live API in parallel.
             Promise.all([
-                MasterDataService.getBusinessPartners(sIniCC, sRecCC, sTxType),
-                MasterDataService.getReverseBP(sRecCC, sIniCC)
+                MasterDataService.getICT001URelationship({ senderCC: sIniCC, receiverCC: sRecCC }),
+                MasterDataService.getICT001URelationship({ senderCC: sRecCC, receiverCC: sIniCC })
             ]).then(function (aResults) {
-                var aForward = aResults[0];
-                var oReverse = aResults[1];
+                var aForward = aResults[0]; // IniCC as sender → BPforDebit = recipientBP
+                var aReverse = aResults[1]; // RecCC as sender → BPforDebit = initiatorBP
 
                 if (!aForward.length) {
                     oModel.setProperty("/appState/isBusy", false);
@@ -406,19 +568,11 @@ sap.ui.define([
                     return;
                 }
 
-                var oFwd = aForward[0];
-                var sCustomer = oFwd.bp;
-                var sKontsFallback = oFwd.konts || sCustomer;
+                var sRecipientBP  = aForward[0].bpForDebit || aForward[0].bpForCredit;
+                var sInitiatorBP  = aReverse.length ? (aReverse[0].bpForDebit || aReverse[0].bpForCredit) : "—";
 
-                // Write BP fields immediately so party validation can run.
-                oModel.setProperty("/headerData/recipientBP", sCustomer);
-                oModel.setProperty("/headerData/recipientBPName", oFwd.bpName);
-                oModel.setProperty("/headerData/initiatorBP", oReverse ? oReverse.bp : "—");
-
-                // Stage 2: Fetch reconciliation accounts for both GL blocks in parallel.
-                // Initiator GL: I_SupplierCompany(recipientCC, recipientBP)
-                // Recipient GL: I_CustomerCompany(initiatorCC, initiatorBP)
-                var sInitiatorBPForRecon = oReverse ? oReverse.bp : "";
+                oModel.setProperty("/headerData/recipientBP",   sRecipientBP);
+                oModel.setProperty("/headerData/initiatorBP",   sInitiatorBP);
 
                 var fnFinalize = function () {
                     oModel.setProperty("/appState/isBusy", false);
@@ -429,47 +583,20 @@ sap.ui.define([
                     that._propagateRecipientTradingPartner();
                 };
 
-                var pSupplier = MasterDataService.getReconciliationAccount(sRecCC, sCustomer)
-                    .catch(function (oError) {
-                        jQuery.sap.log.error(
-                            "[ZFI_INTERCO] I_SupplierCompany failed for CC=" + sRecCC +
-                            ", Supplier=" + sCustomer + ". " +
-                            (oError && oError.message ? oError.message : "")
-                        );
-                        return null;
-                    });
-
-                var pCustomer = MasterDataService.getReconciliationAccountCustomer(sIniCC, sInitiatorBPForRecon)
-                    .catch(function (oError) {
-                        jQuery.sap.log.error(
-                            "[ZFI_INTERCO] I_CustomerCompany failed for CC=" + sIniCC +
-                            ", Customer=" + sInitiatorBPForRecon + ". " +
-                            (oError && oError.message ? oError.message : "")
-                        );
-                        return null;
-                    });
+                var pSupplier = MasterDataService.getReconciliationAccount(sRecCC, sRecipientBP)
+                    .catch(function () { return null; });
+                var pCustomer = MasterDataService.getReconciliationAccountCustomer(sIniCC, sInitiatorBP)
+                    .catch(function () { return null; });
 
                 Promise.all([pSupplier, pCustomer]).then(function (aReconResults) {
-                    var sReconAcct = aReconResults[0]
-                        ? aReconResults[0].reconciliationAccount
-                        : sKontsFallback;
-                    oModel.setProperty("/headerData/reconciliationAccount", sReconAcct);
-                    if (!aReconResults[0]) {
-                        MessageToast.show("Initiator GL account derivation failed — using T001U clearing account as fallback.");
-                    }
-
-                    var sRecipReconAcct = aReconResults[1]
-                        ? aReconResults[1].reconciliationAccount
-                        : sInitiatorBPForRecon;
-                    oModel.setProperty("/headerData/recipientReconciliationAccount", sRecipReconAcct);
-                    if (!aReconResults[1]) {
-                        MessageToast.show("Recipient GL account derivation failed — using BP number as fallback.");
-                    }
-
+                    oModel.setProperty("/headerData/reconciliationAccount",
+                        aReconResults[0] ? aReconResults[0].reconciliationAccount : sRecipientBP);
+                    oModel.setProperty("/headerData/recipientReconciliationAccount",
+                        aReconResults[1] ? aReconResults[1].reconciliationAccount : sInitiatorBP);
                     fnFinalize();
                 });
 
-            }, function () {
+            }).catch(function () {
                 oModel.setProperty("/appState/isBusy", false);
                 MessageToast.show("Failed to derive intercompany business partners.");
             });
@@ -479,7 +606,27 @@ sap.ui.define([
 
         onInitiatorCCValueHelp: function () {
             this._sCCPicklistMode = "initiator";
-            this._openCCPicklist();
+            var oModel = this.getView().getModel();
+            var that   = this;
+
+            oModel.setProperty("/appState/isBusy", true);
+
+            MasterDataService.getICT001URelationship({}).then(function (aRels) {
+                var mSeen    = {};
+                var aOptions = [];
+                aRels.forEach(function (r) {
+                    if (!mSeen[r.senderCC]) {
+                        mSeen[r.senderCC] = true;
+                        aOptions.push({ companyCode: r.senderCC, name: r.senderCC, country: "" });
+                    }
+                });
+                oModel.setProperty("/referenceData/initiatorCCOptions", aOptions);
+                oModel.setProperty("/appState/isBusy", false);
+                that._openCCPicklist();
+            }).catch(function (oErr) {
+                oModel.setProperty("/appState/isBusy", false);
+                MessageBox.error("Could not load company codes: " + (oErr && oErr.message ? oErr.message : String(oErr)));
+            });
         },
 
         onRecipientCCValueHelp: function () {
@@ -613,7 +760,7 @@ sap.ui.define([
                 oModel.setProperty("/headerData/partyValidationState", "Success");
                 oModel.setProperty("/headerData/partyValidationText",
                     "T001U relationship confirmed. Initiator " + sIniCC + " ↔ Recipient " + sRecCC +
-                    ". Interco clearing accounts derived from T001U.");
+                    ". Interco clearing accounts derived from YY1_ICT001U.");
             } else {
                 oModel.setProperty("/headerData/partyValidationVisible", false);
             }
