@@ -43,25 +43,30 @@ sap.ui.define([
                 if (oCC) {
                     oModel.setProperty("/headerData/initiatorCCName",  oCC.name);
                     oModel.setProperty("/headerData/initiatorCountry", oCC.country);
+                    if (oCC.country) {
+                        MasterDataService.getTaxCodesByCountry(oCC.country).then(function (aCodes) {
+                            oModel.setProperty("/referenceData/initiatorTaxCodes", aCodes);
+                        });
+                    }
                 }
                 that._loadUserDefaultCC();
             }).catch(function () {
                 that._loadUserDefaultCC();
             });
-
-            MasterDataService.getAllTaxCodes().then(function (aAll) {
-                oModel.setProperty("/referenceData/allTaxCodes", aAll);
-                var sDefaultCountry = "ZA"; // matches DEFAULT.INITIATOR_CC = 1110
-                oModel.setProperty("/referenceData/initiatorTaxCodes",
-                    aAll.filter(function (t) { return t.country === sDefaultCountry; }));
-            }).catch(function () {
-                oModel.setProperty("/referenceData/allTaxCodes", []);
-            });
-            MasterDataService.getTaxCodes().then(function (aTaxCodes) {
-                oModel.setProperty("/referenceData/taxCodes", aTaxCodes);
-            });
             MasterDataService.getClosedPeriods().then(function (aPeriods) {
                 oModel.setProperty("/referenceData/closedPeriods", aPeriods);
+            });
+
+            // Populate Document Type dropdown from service; fall back to known types if API is empty
+            var aFallbackTypes = [
+                { documentType: Constants.DOCUMENT_TYPE.IC },
+                { documentType: Constants.DOCUMENT_TYPE.IA }
+            ];
+            MasterDataService.getDocumentTypes().then(function (aTypes) {
+                oModel.setProperty("/referenceData/documentTypes",
+                    (aTypes && aTypes.length) ? aTypes : aFallbackTypes);
+            }).catch(function () {
+                oModel.setProperty("/referenceData/documentTypes", aFallbackTypes);
             });
         },
 
@@ -72,8 +77,8 @@ sap.ui.define([
                 headerData: {
                     transactionType: Constants.TRANSACTION_TYPE.AR,
                     transactionTypeIndex: 0,
-                    documentType: this.getI18nText("documentType." + Constants.DOCUMENT_TYPE.SA),
-                    documentTypeCode: "SA", // Set initial default document type code
+                    documentType: Constants.DOCUMENT_TYPE.IC,
+                    documentTypeCode: Constants.DOCUMENT_TYPE.IC,
                     taxInvoiceRequired: false,
                     taxInvoiceNumber: "",
                     taxInvoiceDate: "",
@@ -117,8 +122,11 @@ sap.ui.define([
                     recipientTaxAmount: "0.00",
                     recipientCountry: "— (derived from Recipient CC)",
                     recipientTaxCodeState: "None",
+                    taxCodeVisible: false,
                     taxCalcVisible: false,
                     taxCalcRows: [],
+                    taxMismatchVisible: false,
+                    taxMismatchText: "",
 
                     comments: "",
                     attachments: [
@@ -339,17 +347,9 @@ sap.ui.define([
                 oModel.setProperty("/headerData/initiatorCountry", oCC ? oCC.country : "—");
 
                 if (oCC && oCC.country) {
-                    var aAll = oModel.getProperty("/referenceData/allTaxCodes") || [];
-                    if (aAll.length) {
-                        oModel.setProperty("/referenceData/initiatorTaxCodes",
-                            aAll.filter(function (t) { return t.country === oCC.country; }));
-                    } else {
-                        MasterDataService.getAllTaxCodes().then(function (aFetched) {
-                            oModel.setProperty("/referenceData/allTaxCodes", aFetched);
-                            oModel.setProperty("/referenceData/initiatorTaxCodes",
-                                aFetched.filter(function (t) { return t.country === oCC.country; }));
-                        });
-                    }
+                    MasterDataService.getTaxCodesByCountry(oCC.country).then(function (aCodes) {
+                        oModel.setProperty("/referenceData/initiatorTaxCodes", aCodes);
+                    });
                 }
 
                 var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
@@ -382,17 +382,9 @@ sap.ui.define([
                 oModel.setProperty("/headerData/recipientCountry", oCC ? oCC.country : "—");
 
                 if (oCC && oCC.country) {
-                    var aAll = oModel.getProperty("/referenceData/allTaxCodes") || [];
-                    if (aAll.length) {
-                        oModel.setProperty("/referenceData/recipientTaxCodes",
-                            aAll.filter(function (t) { return t.country === oCC.country; }));
-                    } else {
-                        MasterDataService.getAllTaxCodes().then(function (aFetched) {
-                            oModel.setProperty("/referenceData/allTaxCodes", aFetched);
-                            oModel.setProperty("/referenceData/recipientTaxCodes",
-                                aFetched.filter(function (t) { return t.country === oCC.country; }));
-                        });
-                    }
+                    MasterDataService.getTaxCodesByCountry(oCC.country).then(function (aCodes) {
+                        oModel.setProperty("/referenceData/recipientTaxCodes", aCodes);
+                    });
                 }
 
                 var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
@@ -442,11 +434,9 @@ sap.ui.define([
                         oModel.setProperty("/headerData/recipientCCName",  oCC ? oCC.name    : sRecCC);
                         oModel.setProperty("/headerData/recipientCountry", oCC ? oCC.country : "—");
                         if (oCC && oCC.country) {
-                            var aAll = oModel.getProperty("/referenceData/allTaxCodes") || [];
-                            if (aAll.length) {
-                                oModel.setProperty("/referenceData/recipientTaxCodes",
-                                    aAll.filter(function (t) { return t.country === oCC.country; }));
-                            }
+                            MasterDataService.getTaxCodesByCountry(oCC.country).then(function (aCodes) {
+                                oModel.setProperty("/referenceData/recipientTaxCodes", aCodes);
+                            });
                         }
                     }).catch(function () {
                         oModel.setProperty("/headerData/recipientCCName",  sRecCC);
@@ -810,10 +800,23 @@ sap.ui.define([
             var fNet = parseFloat(oModel.getProperty("/headerData/netAmount")) || 0;
             var fTax = parseFloat(oModel.getProperty("/headerData/taxAmount")) || 0;
 
-            // Total Intercompany Amount = Net + Tax
-            var fTotal = fNet + fTax;
+            oModel.setProperty("/headerData/totalIntercoAmount", (fNet + fTax).toFixed(2));
 
-            oModel.setProperty("/headerData/totalIntercoAmount", fTotal.toFixed(2));
+            // Show Tax Code dropdowns only when a tax amount has been entered
+            var bTaxVisible = fTax > 0;
+            oModel.setProperty("/headerData/taxCodeVisible", bTaxVisible);
+
+            if (!bTaxVisible) {
+                // Tax removed — clear tax code selections, computed amounts, and any mismatch warning
+                oModel.setProperty("/headerData/initiatorTaxCode",   "");
+                oModel.setProperty("/headerData/recipientTaxCode",   "");
+                oModel.setProperty("/headerData/initiatorTaxAmount", "0.00");
+                oModel.setProperty("/headerData/recipientTaxAmount", "0.00");
+                oModel.setProperty("/headerData/taxCalcRows",        []);
+                oModel.setProperty("/headerData/taxCalcVisible",     false);
+                oModel.setProperty("/headerData/taxMismatchVisible", false);
+                oModel.setProperty("/headerData/taxMismatchText",    "");
+            }
 
             this._recalculateTax();
             this._syncBPClearingLine();
@@ -850,54 +853,93 @@ sap.ui.define([
         },
 
         _recalculateTax: function () {
-            var oModel = this.getView().getModel();
-            var fGross = parseFloat(oModel.getProperty("/headerData/totalIntercoAmount")) || 0;
-            var sIniCode = oModel.getProperty("/headerData/initiatorTaxCode") || "";
-            var sRecCode = oModel.getProperty("/headerData/recipientTaxCode") || "";
+            var oModel      = this.getView().getModel();
+            // Req 2/3: base is IC Net Amount — user-entered /headerData/taxAmount is NEVER modified here
+            var fNet        = parseFloat(oModel.getProperty("/headerData/netAmount")) || 0;
+            var sIniCode    = oModel.getProperty("/headerData/initiatorTaxCode") || "";
+            var sRecCode    = oModel.getProperty("/headerData/recipientTaxCode") || "";
+            var sIniCountry = oModel.getProperty("/headerData/initiatorCountry") || "";
+            var sRecCountry = oModel.getProperty("/headerData/recipientCountry") || "";
 
-            var aIniCodes = oModel.getProperty("/referenceData/initiatorTaxCodes") || [];
-            var aRecCodes = oModel.getProperty("/referenceData/recipientTaxCodes") || [];
-            var oIniTax = aIniCodes.find(function (t) { return t.code === sIniCode; });
-            var oRecTax = aRecCodes.find(function (t) { return t.code === sRecCode; });
-            var fIniRate = oIniTax ? oIniTax.rate : 0;
-            var fRecRate = oRecTax ? oRecTax.rate : 0;
-
-            var fIniTax = fGross > 0 ? (fGross * fIniRate / (1 + fIniRate)) : 0;
-            var fRecTax = fGross > 0 ? (fGross * fRecRate / (1 + fRecRate)) : 0;
-
-            oModel.setProperty("/headerData/initiatorTaxAmount", fIniTax.toFixed(2));
-            oModel.setProperty("/headerData/recipientTaxAmount", fRecTax.toFixed(2));
-
-            var aRows = [];
-            var sCcy = oModel.getProperty("/headerData/currency") || Constants.DEFAULT.CURRENCY;
-            var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
-            var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
-
-            if (fGross > 0 && sIniCode) {
-                aRows.push({
-                    entity: "Initiator" + (sIniCC ? " (" + sIniCC + ")" : ""),
-                    taxCode: sIniCode,
-                    rate: (fIniRate * 100).toFixed(0) + "%",
-                    gross: fGross.toFixed(2),
-                    taxAmount: fIniTax.toFixed(2),
-                    netAmount: (fGross - fIniTax).toFixed(2),
-                    currency: sCcy
-                });
+            if (!fNet || (!sIniCode && !sRecCode)) {
+                oModel.setProperty("/headerData/initiatorTaxAmount", "0.00");
+                oModel.setProperty("/headerData/recipientTaxAmount", "0.00");
+                oModel.setProperty("/headerData/taxCalcRows",        []);
+                oModel.setProperty("/headerData/taxCalcVisible",     false);
+                oModel.setProperty("/headerData/taxMismatchVisible", false);
+                oModel.setProperty("/headerData/taxMismatchText",    "");
+                return;
             }
-            if (fGross > 0 && sRecCode) {
-                aRows.push({
-                    entity: "Recipient" + (sRecCC ? " (" + sRecCC + ")" : ""),
-                    taxCode: sRecCode,
-                    rate: (fRecRate * 100).toFixed(0) + "%",
-                    gross: fGross.toFixed(2),
-                    taxAmount: fRecTax.toFixed(2),
-                    netAmount: (fGross - fRecTax).toFixed(2),
-                    currency: sCcy
+
+            var fIniTax = 0;
+            var fRecTax = 0;
+            var pChain  = Promise.resolve();
+
+            if (sIniCode) {
+                pChain = pChain.then(function () {
+                    return MasterDataService.getTaxCodeRate(sIniCode, sIniCountry);
+                }).then(function (fRate) {
+                    // Req 2: Calculated Tax = IC Net Amount × CONDITIONRATERATIO / 100
+                    fIniTax = fNet * fRate / 100;
+                    oModel.setProperty("/headerData/initiatorTaxAmount", fIniTax.toFixed(2));
                 });
             }
 
-            oModel.setProperty("/headerData/taxCalcRows", aRows);
-            oModel.setProperty("/headerData/taxCalcVisible", aRows.length > 0);
+            if (sRecCode) {
+                pChain = pChain.then(function () {
+                    return MasterDataService.getTaxCodeRate(sRecCode, sRecCountry);
+                }).then(function (fRate) {
+                    // Req 3: Same formula for recipient
+                    fRecTax = fNet * fRate / 100;
+                    oModel.setProperty("/headerData/recipientTaxAmount", fRecTax.toFixed(2));
+                });
+            }
+
+            pChain.then(function () {
+                var sCcy   = oModel.getProperty("/headerData/currency") || Constants.DEFAULT.CURRENCY;
+                var sIniCC = (oModel.getProperty("/headerData/initiatorCC") || "").trim().toUpperCase();
+                var sRecCC = (oModel.getProperty("/headerData/recipientCC") || "").trim().toUpperCase();
+                var aRows  = [];
+
+                if (fNet > 0 && sIniCode) {
+                    aRows.push({
+                        entity:    "Initiator" + (sIniCC ? " (" + sIniCC + ")" : ""),
+                        taxCode:   sIniCode,
+                        rate:      (fNet > 0 ? ((fIniTax / fNet) * 100).toFixed(2) : "0.00") + "%",
+                        gross:     fNet.toFixed(2),
+                        taxAmount: fIniTax.toFixed(2),
+                        netAmount: (fNet - fIniTax).toFixed(2),
+                        currency:  sCcy
+                    });
+                }
+                if (fNet > 0 && sRecCode) {
+                    aRows.push({
+                        entity:    "Recipient" + (sRecCC ? " (" + sRecCC + ")" : ""),
+                        taxCode:   sRecCode,
+                        rate:      (fNet > 0 ? ((fRecTax / fNet) * 100).toFixed(2) : "0.00") + "%",
+                        gross:     fNet.toFixed(2),
+                        taxAmount: fRecTax.toFixed(2),
+                        netAmount: (fNet - fRecTax).toFixed(2),
+                        currency:  sCcy
+                    });
+                }
+                oModel.setProperty("/headerData/taxCalcRows",    aRows);
+                oModel.setProperty("/headerData/taxCalcVisible", aRows.length > 0);
+
+                // Req 4: Compare user-entered taxAmount vs total calculated — warning only, never overwrite
+                var fUserTax   = parseFloat(oModel.getProperty("/headerData/taxAmount")) || 0;
+                var fCalcTotal = fIniTax + fRecTax;
+                if (fUserTax > 0 && Math.abs(fUserTax - fCalcTotal) > 0.01) {
+                    oModel.setProperty("/headerData/taxMismatchVisible", true);
+                    oModel.setProperty("/headerData/taxMismatchText",
+                        "Warning: The entered Tax Amount (" + fUserTax.toFixed(2) + " " + sCcy +
+                        ") does not match the calculated Tax Amount (" + fCalcTotal.toFixed(2) + " " + sCcy +
+                        ") based on the selected Tax Code. Please review the entered value.");
+                } else {
+                    oModel.setProperty("/headerData/taxMismatchVisible", false);
+                    oModel.setProperty("/headerData/taxMismatchText",    "");
+                }
+            });
         },
 
         // ─────────────────────────────────────────────────────────────────────
@@ -1461,9 +1503,12 @@ sap.ui.define([
                     oModel.setProperty("/workflow/status", "Posted");
                     oModel.setProperty("/workflow/statusState", "Success");
                     oModel.setProperty("/workflow/intercoRef", oResult.accountingdocument_temp || sDocId);
+                    var sIniDoc = (oResult.in_accountingdocument  || "").replace(/<\/$/, "").trim();
+                    var sRecDoc = (oResult.rec_accountingdocument || "").replace(/<\/$/, "").trim();
                     MessageBox.success(
-                        "Intercompany document posted and activated successfully.\n\n" +
-                        "Document reference: " + (oResult.accountingdocument_temp || sDocId)
+                        "Intercompany document posted successfully.\n\n" +
+                        "Initiator: " + (sIniDoc || "—") + "\n" +
+                        "Recipient: " + (sRecDoc || "—")
                     );
                 })
                 .catch(function (oError) {

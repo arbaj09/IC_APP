@@ -114,8 +114,31 @@ sap.ui.define([], function () {
 
         getTaxCodesByCountry: function (sCountry) {
             if (!sCountry) { return Promise.resolve([]); }
-            return this.getAllTaxCodes().then(function (aAll) {
-                return aAll.filter(function (t) { return t.country === sCountry; });
+            var sRoot = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+            var sUrl  = sRoot + "ZC_RETRIEVE_TAXCODE?$filter=" +
+                        encodeURIComponent("Country eq '" + sCountry + "'");
+            return new Promise(function (resolve) {
+                jQuery.ajax({
+                    url:    sUrl,
+                    method: "GET",
+                    headers: {
+                        "Accept":           "application/json",
+                        "OData-Version":    "4.0",
+                        "OData-MaxVersion": "4.0"
+                    },
+                    success: function (oData) {
+                        var aItems = (oData && oData.value) || [];
+                        resolve(aItems.map(function (item) {
+                            return {
+                                code:        item.TaxCode,
+                                description: item.TaxCodeDescription,
+                                country:     item.Country,
+                                rate:        0
+                            };
+                        }));
+                    },
+                    error: function () { resolve([]); }
+                });
             });
         },
 
@@ -312,7 +335,8 @@ sap.ui.define([], function () {
                             return { documentType: o.DocumentType };
                         }));
                     },
-                    error: function () {
+                    error: function (oXHR) {
+                        console.warn("getDocumentTypes: API failed (" + oXHR.status + ") – using fallback");
                         resolve([]);
                     }
                 });
@@ -565,14 +589,38 @@ console.log("Doc ID =", sDocId);
         },
 
         /**
-         * Posts Recipient GL lines to an existing draft header, then activates it.
-         * Called from onPostDocument after the Initiator submit flow has completed.
+         * Fetches the tax rate for a given TaxCode (and optional Country) from I_TaxCodeRate.
+         * Returns the CONDITIONRATERATIO value (percentage, e.g. 15 for 15%).
          *
-         * @param {string} sDocId            accountingdocument_temp from the earlier Submit
-         * @param {object} oHeader           /headerData model object
-         * @param {Array}  aRecipientLines   /recipientLines model array
-         * @param {number} iInitiatorCount   number of Initiator lines already posted (for sequential numbering)
+         * @param {string} sTaxCode  Tax code (e.g. "V1")
+         * @param {string} sCountry  Country key (e.g. "ZA") — optional but recommended
+         * @returns {Promise<number>} Resolves with CONDITIONRATERATIO (0 if not found)
          */
+        getTaxCodeRate: function (sTaxCode, sCountry) {
+            if (!sTaxCode) { return Promise.resolve(0); }
+            var sRoot   = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
+            var sFilter = "TaxCode eq '" + sTaxCode + "'";
+            if (sCountry) { sFilter += " and Country eq '" + sCountry + "'"; }
+            var sUrl = sRoot + "I_TaxCodeRate?$filter=" + encodeURIComponent(sFilter) + "&$top=1";
+            return new Promise(function (resolve) {
+                jQuery.ajax({
+                    url:    sUrl,
+                    method: "GET",
+                    headers: {
+                        "Accept":           "application/json",
+                        "OData-Version":    "4.0",
+                        "OData-MaxVersion": "4.0"
+                    },
+                    success: function (oData) {
+                        var aItems = (oData && oData.value) || [];
+                        if (!aItems.length) { resolve(0); return; }
+                        resolve(parseFloat(aItems[0].ConditionRateRatio || 0));
+                    },
+                    error: function () { resolve(0); }
+                });
+            });
+        },
+
         submitRecipientLines: function (sDocId, oHeader, aRecipientLines, iInitiatorCount) {
             var sRoot    = "/sap/opu/odata4/sap/zsb_interco_app/srvd/sap/zsd_interco_app/0001/";
             var sKeyFrag = "ZC_INTERCO_JE_HEADER(accountingdocument_temp='" + sDocId + "',IsActiveEntity=false)";
@@ -732,7 +780,12 @@ console.log("Doc ID =", sDocId);
                                     }
                                 } catch (e) { /* ignore malformed header */ }
                             }
-                            resolve({ accountingdocument_temp: oCtx.sActiveDocId, result: oData });
+                            resolve({
+                                accountingdocument_temp: oCtx.sActiveDocId,
+                                in_accountingdocument:   oData.in_accountingdocument  || "",
+                                rec_accountingdocument:  oData.rec_accountingdocument || "",
+                                result: oData
+                            });
                         },
                         error:       function (oXHR) {
                             reject(new Error("PostJournalEntry failed [" + oXHR.status + "]: " + parseError(oXHR)));

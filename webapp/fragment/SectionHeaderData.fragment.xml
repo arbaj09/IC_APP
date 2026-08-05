@@ -35,13 +35,16 @@
                                 placeholder="Select document type"
                                 width="220px"/> -->
 
-                                <Input
-                                id="inpDocType"
-                                value="{/headerData/documentTypeCode}"
-                                description="{/headerData/documentType}"
-                                editable="false"
-                                showValueHelp="false"
-                                width="300px"/>
+                                <!-- Req 5: Document Type populated dynamically from getDocumentTypes() -->
+                                <Select
+                                    id="selDocType"
+                                    selectedKey="{/headerData/documentTypeCode}"
+                                    enabled="{/appState/isHeaderEditable}"
+                                    width="300px"
+                                    forceSelection="false"
+                                    items="{path: '/referenceData/documentTypes', templateShareable: false}">
+                                    <core:ListItem key="{documentType}" text="{documentType}"/>
+                                </Select>
                         </f:content>
                          <!-- Optimized UX Explanatory Note -->
                             <MessageStrip

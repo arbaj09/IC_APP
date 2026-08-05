@@ -15,29 +15,28 @@
 
             <uxap:ObjectPageSubSection
              title="Tax Code"
-           visible="{= ${/headerData/transactionType} === 'AR' }"
              titleUppercase="false">
                 <uxap:blocks>
                     <VBox>
-                        <f:SimpleForm editable="true" 
+                        <f:SimpleForm editable="true"
                                       layout="ResponsiveGridLayout"
                                       labelSpanXL="2"
-                                      labelSpanL="2" 
-                                      labelSpanM="3" 
+                                      labelSpanL="2"
+                                      labelSpanM="3"
                                       labelSpanS="12"
                                       adjustLabelSpan="false"
                                       emptySpanXL="0"
                                       emptySpanL="0"
                                       emptySpanM="0"
                                       emptySpanS="0"
-                                      columnsL="1" 
+                                      columnsL="1"
                                       columnsM="1">
                             <f:content>
                                 <Label text="Tax / VAT Code" textAlign="Left"/>
                                 <VBox renderType="Bare">
                                     <Select selectedKey="{/headerData/initiatorTaxCode}"
                                             change="onInitiatorTaxCodeChange"
-                                            enabled="{/appState/isHeaderEditable}"
+                                            enabled="{= ${/appState/isHeaderEditable} &amp;&amp; ${/headerData/taxCodeVisible}}"
                                             width="280px"
                                             forceSelection="false"
                                             valueState="{/headerData/initiatorTaxCodeState}"
@@ -54,6 +53,14 @@
                                     state="{path: '/headerData/initiatorTaxAmount', formatter: '.formatter.taxAmountState'}"/>
                             </f:content>
                         </f:SimpleForm>
+                        <MessageStrip
+                            id="taxMismatchStripInitiator"
+                            visible="{/headerData/taxMismatchVisible}"
+                            text="{/headerData/taxMismatchText}"
+                            type="Warning"
+                            showIcon="true"
+                            showCloseButton="true"
+                            class="sapUiSmallMarginTop"/>
                     </VBox>
                 </uxap:blocks>
             </uxap:ObjectPageSubSection>
